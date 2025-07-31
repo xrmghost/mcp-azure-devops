@@ -1,6 +1,5 @@
 import os
-from mcp.server import Mcp
-from mcp.tool import McpTool, McpToolSchema
+from mcp.server import Mcp, McpTool, McpToolSchema
 from .azure_devops_client import AzureDevOpsClient
 
 def main():

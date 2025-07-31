@@ -197,7 +197,12 @@ def main():
                 "state": work_item.fields['System.State']
             }
         elif name == "delete_work_item":
-            result = client.delete_work_item(**arguments)
+            delete_result = client.delete_work_item(**arguments)
+            result = {
+                "message": f"Work item {arguments['work_item_id']} has been deleted successfully.",
+                "deleted_date": delete_result.deleted_date.isoformat() if delete_result.deleted_date else None,
+                "deleted_by": delete_result.deleted_by.display_name if delete_result.deleted_by else None
+            }
         elif name == "search_work_items":
             result = client.search_work_items(**arguments)
         elif name == "create_wiki_page":

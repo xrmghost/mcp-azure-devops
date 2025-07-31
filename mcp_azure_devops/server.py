@@ -189,7 +189,13 @@ def main():
         elif name == "get_work_item":
             result = client.get_work_item(**arguments)
         elif name == "update_work_item":
-            result = client.update_work_item(**arguments)
+            work_item = client.update_work_item(**arguments)
+            result = {
+                "id": work_item.id,
+                "url": work_item.url,
+                "title": work_item.fields['System.Title'],
+                "state": work_item.fields['System.State']
+            }
         elif name == "delete_work_item":
             result = client.delete_work_item(**arguments)
         elif name == "search_work_items":

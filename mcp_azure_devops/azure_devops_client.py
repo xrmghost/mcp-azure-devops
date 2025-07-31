@@ -78,26 +78,35 @@ class AzureDevOpsClient:
         return self.work_item_tracking_client.delete_work_item(id=work_item_id)
 
     def search_work_items(self, project, wiql_query):
-        project_object = self.core_client.get_project(project)
-        project_id = project_object.id
-
-        wiql = Wiql(query=wiql_query)
-        query_result = self.work_item_tracking_client.query_by_wiql(wiql, project_id)
-        
-        if query_result.work_items:
-            work_item_ids = [item.id for item in query_result.work_items]
-            work_items = self.work_item_tracking_client.get_work_items(ids=work_item_ids, project=project_id)
-            return [
-                {
-                    "id": wi.id,
-                    "title": wi.fields.get("System.Title"),
-                    "state": wi.fields.get("System.State"),
-                    "url": wi.url,
-                }
-                for wi in work_items
-            ]
-        else:
-            return []
+        try:
+            print(f"DEBUG: project = {project}, type = {type(project)}")
+            wiql = Wiql(query=wiql_query)
+            print(f"DEBUG: wiql created successfully")
+            query_result = self.work_item_tracking_client.query_by_wiql(wiql, project)
+            print(f"DEBUG: query_by_wiql completed successfully")
+            
+            if query_result.work_items:
+                work_item_ids = [item.id for item in query_result.work_items]
+                print(f"DEBUG: work_item_ids = {work_item_ids}")
+                work_items = self.work_item_tracking_client.get_work_items(ids=work_item_ids)
+                print(f"DEBUG: get_work_items completed successfully")
+                return [
+                    {
+                        "id": wi.id,
+                        "title": wi.fields.get("System.Title"),
+                        "state": wi.fields.get("System.State"),
+                        "url": wi.url,
+                    }
+                    for wi in work_items
+                ]
+            else:
+                return []
+        except Exception as e:
+            print(f"DEBUG: Exception occurred: {e}")
+            print(f"DEBUG: Exception type: {type(e)}")
+            import traceback
+            traceback.print_exc()
+            raise e
 
     def create_wiki_page(self, project, wiki_identifier, path, content):
         parameters = {

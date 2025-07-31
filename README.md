@@ -12,31 +12,50 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Core Features
 
-The MCP server will expose a set of tools to interact with Azure DevOps, categorized by area:
+The MCP server will expose a set of tools to interact with Azure DevOps, categorized by area.
 
-### Work Item Management (CRUD)
--   `create_work_item` (supports Epic, User Story, Task, Bug)
+### Implemented Features
+
+#### Work Item Management (CRUD)
+-   `create_work_item` (supports Epic, User Story, Task, Bug, and work item linking)
 -   `get_work_item` (by ID)
--   `update_work_item` (by ID)
+-   `update_work_item` (by ID, supports work item linking)
 -   `delete_work_item` (by ID)
 -   `search_work_items` (using WIQL - Work Item Query Language)
 
-### Wiki Management (CRUD)
+#### Wiki Management (CRUD)
 -   `create_wiki_page`
 -   `get_wiki_page` (by path)
 -   `update_wiki_page` (by path)
 -   `delete_wiki_page` (by path)
 -   `list_wiki_pages`
 -   `get_wikis`
+-   `create_wiki`
 
-### Repository Management (Read-only)
+#### Repository Management (Read-only)
 -   `list_repositories`
 -   `list_files` (in a repository)
 -   `get_file_content`
 
-### Project Scoping
+#### Project Scoping
 -   `set_project_context`: A special tool to set the active project for subsequent commands.
 -   `clear_project_context`: To revert to the organization-level scope.
+-   `get_projects`: To list all projects in the organization.
+
+#### Server Documentation
+-   `list_available_tools`: Lists all available tools.
+-   `get_tool_documentation`: Gets the documentation for a specific tool.
+
+### Planned Features
+
+-   **Repository Management (Write operations):**
+    -   `create_repository`
+    -   `create_pull_request`
+    -   `manage_branches`
+-   **Pipeline Management:**
+    -   `trigger_build`
+    -   `get_build_status`
+    -   `list_pipelines`
 
 ## Getting Started
 

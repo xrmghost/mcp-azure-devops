@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcp-azure-devops"
+version = "0.1.0"
+authors = [
+  { name="Your Name", email="you@example.com" },
+]
+description = "An MCP server for Azure DevOps"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "mcp",
+    "azure-devops-python-api",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/xrmghost/mcp-azure-devops"
+"Bug Tracker" = "https://github.com/xrmghost/mcp-azure-devops/issues"
+
+[project.scripts]
+mcp-azure-devops = "mcp_azure_devops.server:main"

@@ -27,6 +27,7 @@ The MCP server will expose a set of tools to interact with Azure DevOps, categor
 -   `update_wiki_page` (by path)
 -   `delete_wiki_page` (by path)
 -   `list_wiki_pages`
+-   `get_wikis`
 
 ### Repository Management (Read-only)
 -   `list_repositories`

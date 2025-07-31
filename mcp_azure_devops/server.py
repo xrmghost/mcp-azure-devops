@@ -94,6 +94,19 @@ def main():
             }
         ),
         types.Tool(
+            name="update_wiki_page",
+            description="Updates a wiki page.",
+            inputSchema={
+                "properties": {
+                    "project": {"type": "string", "description": "The name or ID of the project."},
+                    "wiki_identifier": {"type": "string", "description": "The name or ID of the wiki."},
+                    "path": {"type": "string", "description": "The path of the wiki page."},
+                    "content": {"type": "string", "description": "The content of the wiki page."},
+                },
+                "required": ["project", "wiki_identifier", "path", "content"],
+            }
+        ),
+        types.Tool(
             name="delete_wiki_page",
             description="Deletes a wiki page by its path.",
             inputSchema={
@@ -114,6 +127,16 @@ def main():
                     "wiki_identifier": {"type": "string", "description": "The name or ID of the wiki."},
                 },
                 "required": ["project", "wiki_identifier"],
+            }
+        ),
+        types.Tool(
+            name="get_wikis",
+            description="Gets all wikis in a project.",
+            inputSchema={
+                "properties": {
+                    "project": {"type": "string", "description": "The name or ID of the project."},
+                },
+                "required": ["project"],
             }
         ),
         types.Tool(
@@ -209,10 +232,14 @@ def main():
             result = client.create_wiki_page(**arguments)
         elif name == "get_wiki_page":
             result = client.get_wiki_page(**arguments)
+        elif name == "update_wiki_page":
+            result = client.update_wiki_page(**arguments)
         elif name == "delete_wiki_page":
             result = client.delete_wiki_page(**arguments)
         elif name == "list_wiki_pages":
             result = client.list_wiki_pages(**arguments)
+        elif name == "get_wikis":
+            result = client.get_wikis(**arguments)
         elif name == "list_repositories":
             result = client.list_repositories(**arguments)
         elif name == "list_files":

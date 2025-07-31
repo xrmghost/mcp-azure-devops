@@ -125,6 +125,24 @@ class AzureDevOpsClient:
             include_content=True
         )
 
+    def update_wiki_page(self, project, wiki_identifier, path, content):
+        page = self.wiki_client.get_page(
+            project=project,
+            wiki_identifier=wiki_identifier,
+            path=path
+        )
+        
+        parameters = {
+            "content": content
+        }
+        return self.wiki_client.create_or_update_page(
+            project=project,
+            wiki_identifier=wiki_identifier,
+            path=path,
+            parameters=parameters,
+            version=page.e_tag
+        )
+
     def delete_wiki_page(self, project, wiki_identifier, path):
         return self.wiki_client.delete_page(
             project=project,
@@ -133,7 +151,25 @@ class AzureDevOpsClient:
         )
 
     def list_wiki_pages(self, project, wiki_identifier):
-        return {"message": "Listing all wiki pages is not directly supported by the current library version."}
+        pages = self.wiki_client.get_pages_batch(
+            project=project,
+            wiki_identifier=wiki_identifier,
+            page_views_for_days=30  # Optional: to get recent page views
+        )
+        return [
+            {
+                "path": page.path,
+                "url": page.url,
+                "view_stats": [
+                    {"date": stat.date.isoformat(), "count": stat.count}
+                    for stat in page.view_stats
+                ] if page.view_stats else []
+            }
+            for page in pages
+        ]
+
+    def get_wikis(self, project):
+        return self.wiki_client.get_all_wikis(project=project)
 
     def list_repositories(self, project):
         return self.git_client.get_repositories(project=project)

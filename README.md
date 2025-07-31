@@ -91,12 +91,12 @@ This guide will walk you through setting up the `mcp-azure-devops` server.
     -   > **Note:** The location of this file can vary. A common location on Windows is `C:\Users\<YourUsername>\AppData\Roaming\Code\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json`. If you can't find it, you can search your user's home directory for the file.
     -   Add a new entry for the `mcp-azure-devops` server. The command should be `mcp-azure-devops`.
 
-    Here is an example configuration:
+    Here is an example configuration. You must use the **full, absolute path** to the `mcp-azure-devops.exe` executable created inside your virtual environment.
     ```json
     {
       "mcpServers": {
         "mcp-azure-devops": {
-          "command": "mcp-azure-devops",
+          "command": "C:\\path\\to\\your\\project\\mcp-azure-devops\\.venv\\Scripts\\mcp-azure-devops.exe",
           "args": [],
           "env": {
             "AZURE_DEVOPS_ORG_URL": "https://dev.azure.com/your-organization",

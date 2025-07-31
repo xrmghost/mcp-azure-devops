@@ -88,6 +88,7 @@ This guide will walk you through setting up the `mcp-azure-devops` server.
 
 2.  **Configure the MCP Server in Cline:**
     -   Open your `cline_mcp_settings.json` file.
+    -   > **Note:** The location of this file can vary. A common location on Windows is `C:\Users\<YourUsername>\AppData\Roaming\Code\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json`. If you can't find it, you can search your user's home directory for the file.
     -   Add a new entry for the `mcp-azure-devops` server. The command should be `mcp-azure-devops`.
 
     Here is an example configuration:

@@ -18,7 +18,7 @@ classifiers = [
 ]
 dependencies = [
     "mcp",
-    "azure-devops-python-api",
+    "azure-devops",
 ]
 
 [project.urls]

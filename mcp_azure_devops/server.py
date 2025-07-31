@@ -165,6 +165,11 @@ def main():
             description="Clears the project context.",
             inputSchema={}
         ),
+        types.Tool(
+            name="get_projects",
+            description="Gets a list of all projects in the organization.",
+            inputSchema={}
+        ),
     ]
 
     @server.list_tools()
@@ -175,7 +180,12 @@ def main():
     async def call_tool(name: str, arguments: dict) -> list[types.ContentBlock]:
         result = None
         if name == "create_work_item":
-            result = client.create_work_item(**arguments)
+            work_item = client.create_work_item(**arguments)
+            result = {
+                "id": work_item.id,
+                "url": work_item.url,
+                "title": work_item.fields['System.Title']
+            }
         elif name == "get_work_item":
             result = client.get_work_item(**arguments)
         elif name == "update_work_item":
@@ -202,11 +212,16 @@ def main():
             result = client.set_project_context(**arguments)
         elif name == "clear_project_context":
             result = client.clear_project_context()
+        elif name == "get_projects":
+            projects = client.get_projects()
+            project_names = [p.name for p in projects]
+            result = {"projects": project_names}
         
         if result is None:
             return [types.TextContent(type="text", text=f"Tool '{name}' not found.")]
 
-        return [types.TextContent(type="text", text=str(result))]
+        import json
+        return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
 
     async def run_server():
         async with stdio_server() as (read_stream, write_stream):

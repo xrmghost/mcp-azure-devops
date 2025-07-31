@@ -1,6 +1,7 @@
 import os
 from msrest.authentication import BasicAuthentication
 from azure.devops.connection import Connection
+from azure.devops.v7_1.work_item_tracking.models import JsonPatchOperation, Wiql
 
 class AzureDevOpsClient:
     def __init__(self):
@@ -30,8 +31,6 @@ class AzureDevOpsClient:
         return self.core_client.get_projects()
 
     def create_work_item(self, project, work_item_type, title, description):
-        from azure.devops.v7_1.work_item_tracking.models import JsonPatchOperation
-        
         patch_document = [
             JsonPatchOperation(
                 op="add",
@@ -52,11 +51,16 @@ class AzureDevOpsClient:
         )
 
     def get_work_item(self, work_item_id):
-        return self.work_item_tracking_client.get_work_item(id=work_item_id)
+        work_item = self.work_item_tracking_client.get_work_item(id=work_item_id)
+        return {
+            "id": work_item.id,
+            "url": work_item.url,
+            "title": work_item.fields.get("System.Title"),
+            "state": work_item.fields.get("System.State"),
+            "description": work_item.fields.get("System.Description"),
+        }
 
     def update_work_item(self, work_item_id, updates):
-        from azure.devops.v7_1.work_item_tracking.models import JsonPatchOperation
-        
         patch_document = [
             JsonPatchOperation(
                 op="add",
@@ -74,14 +78,24 @@ class AzureDevOpsClient:
         return self.work_item_tracking_client.delete_work_item(id=work_item_id)
 
     def search_work_items(self, project, wiql_query):
-        from azure.devops.v7_1.work_item_tracking.models import Wiql
-        
+        project_object = self.core_client.get_project(project)
+        project_id = project_object.id
+
         wiql = Wiql(query=wiql_query)
-        query_result = self.work_item_tracking_client.query_by_wiql(wiql, project)
+        query_result = self.work_item_tracking_client.query_by_wiql(wiql, project_id)
         
         if query_result.work_items:
             work_item_ids = [item.id for item in query_result.work_items]
-            return self.work_item_tracking_client.get_work_items(ids=work_item_ids)
+            work_items = self.work_item_tracking_client.get_work_items(ids=work_item_ids, project=project_id)
+            return [
+                {
+                    "id": wi.id,
+                    "title": wi.fields.get("System.Title"),
+                    "state": wi.fields.get("System.State"),
+                    "url": wi.url,
+                }
+                for wi in work_items
+            ]
         else:
             return []
 
@@ -113,10 +127,6 @@ class AzureDevOpsClient:
         )
 
     def list_wiki_pages(self, project, wiki_identifier):
-        # The API does not provide a direct way to list all pages.
-        # A common workaround is to get the wiki and inspect the pages,
-        # but the python client library does not expose this easily.
-        # As a placeholder, we will return a message indicating this limitation.
         return {"message": "Listing all wiki pages is not directly supported by the current library version."}
 
     def list_repositories(self, project):

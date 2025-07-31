@@ -2,6 +2,7 @@ import os
 from msrest.authentication import BasicAuthentication
 from azure.devops.connection import Connection
 from azure.devops.v7_1.work_item_tracking.models import JsonPatchOperation, Wiql
+from azure.devops.v7_1.wiki.models import WikiCreateParametersV2, WikiPagesBatchRequest
 
 class AzureDevOpsClient:
     def __init__(self):
@@ -30,7 +31,7 @@ class AzureDevOpsClient:
     def get_projects(self):
         return self.core_client.get_projects()
 
-    def create_work_item(self, project, work_item_type, title, description):
+    def create_work_item(self, project, work_item_type, title, description, relations=None):
         patch_document = [
             JsonPatchOperation(
                 op="add",
@@ -43,6 +44,19 @@ class AzureDevOpsClient:
                 value=description
             )
         ]
+
+        if relations:
+            for relation in relations:
+                patch_document.append(
+                    JsonPatchOperation(
+                        op="add",
+                        path="/relations/-",
+                        value={
+                            "rel": relation["rel"],
+                            "url": relation["url"]
+                        }
+                    )
+                )
         
         return self.work_item_tracking_client.create_work_item(
             document=patch_document,
@@ -60,7 +74,7 @@ class AzureDevOpsClient:
             "description": work_item.fields.get("System.Description"),
         }
 
-    def update_work_item(self, work_item_id, updates):
+    def update_work_item(self, work_item_id, updates, relations=None):
         patch_document = [
             JsonPatchOperation(
                 op="add",
@@ -68,6 +82,19 @@ class AzureDevOpsClient:
                 value=value
             ) for field, value in updates.items()
         ]
+
+        if relations:
+            for relation in relations:
+                patch_document.append(
+                    JsonPatchOperation(
+                        op="add",
+                        path="/relations/-",
+                        value={
+                            "rel": relation["rel"],
+                            "url": relation["url"]
+                        }
+                    )
+                )
         
         return self.work_item_tracking_client.update_work_item(
             document=patch_document,
@@ -151,10 +178,13 @@ class AzureDevOpsClient:
         )
 
     def list_wiki_pages(self, project, wiki_identifier):
+        pages_batch_request = WikiPagesBatchRequest(
+            top=100  # Retrieve up to 100 pages
+        )
         pages = self.wiki_client.get_pages_batch(
             project=project,
             wiki_identifier=wiki_identifier,
-            page_views_for_days=30  # Optional: to get recent page views
+            pages_batch_request=pages_batch_request
         )
         return [
             {
@@ -170,6 +200,11 @@ class AzureDevOpsClient:
 
     def get_wikis(self, project):
         return self.wiki_client.get_all_wikis(project=project)
+
+    def create_wiki(self, project, name):
+        project_object = self.core_client.get_project(project)
+        wiki_params = WikiCreateParametersV2(name=name, type='projectWiki', project_id=project_object.id)
+        return self.wiki_client.create_wiki(wiki_create_params=wiki_params, project=project)
 
     def list_repositories(self, project):
         return self.git_client.get_repositories(project=project)

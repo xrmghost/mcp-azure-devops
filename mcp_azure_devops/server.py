@@ -22,6 +22,18 @@ def main():
                     "work_item_type": {"type": "string", "description": "The type of work item (e.g., 'Bug', 'User Story')."},
                     "title": {"type": "string", "description": "The title of the work item."},
                     "description": {"type": "string", "description": "The description of the work item."},
+                    "relations": {
+                        "type": "array",
+                        "description": "A list of relations to other work items.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "rel": {"type": "string", "description": "The relation type (e.g., 'System.LinkTypes.Dependency-Forward')."},
+                                "url": {"type": "string", "description": "The URL of the related work item."}
+                            },
+                            "required": ["rel", "url"]
+                        }
+                    }
                 },
                 "required": ["project", "work_item_type", "title", "description"],
             }
@@ -43,6 +55,18 @@ def main():
                 "properties": {
                     "work_item_id": {"type": "integer", "description": "The ID of the work item to update."},
                     "updates": {"type": "object", "description": "A dictionary of fields to update."},
+                    "relations": {
+                        "type": "array",
+                        "description": "A list of relations to other work items.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "rel": {"type": "string", "description": "The relation type (e.g., 'System.LinkTypes.Dependency-Forward')."},
+                                "url": {"type": "string", "description": "The URL of the related work item."}
+                            },
+                            "required": ["rel", "url"]
+                        }
+                    }
                 },
                 "required": ["work_item_id", "updates"],
             }
@@ -140,6 +164,17 @@ def main():
             }
         ),
         types.Tool(
+            name="create_wiki",
+            description="Creates a new wiki in a project.",
+            inputSchema={
+                "properties": {
+                    "project": {"type": "string", "description": "The name or ID of the project."},
+                    "name": {"type": "string", "description": "The name of the wiki to create."},
+                },
+                "required": ["project", "name"],
+            }
+        ),
+        types.Tool(
             name="list_repositories",
             description="Lists all repositories in a project.",
             inputSchema={
@@ -193,6 +228,21 @@ def main():
             description="Gets a list of all projects in the organization.",
             inputSchema={}
         ),
+        types.Tool(
+            name="list_available_tools",
+            description="Lists all available tools.",
+            inputSchema={}
+        ),
+        types.Tool(
+            name="get_tool_documentation",
+            description="Gets the documentation for a specific tool.",
+            inputSchema={
+                "properties": {
+                    "tool_name": {"type": "string", "description": "The name of the tool to get documentation for."},
+                },
+                "required": ["tool_name"],
+            }
+        ),
     ]
 
     @server.list_tools()
@@ -229,17 +279,54 @@ def main():
         elif name == "search_work_items":
             result = client.search_work_items(**arguments)
         elif name == "create_wiki_page":
-            result = client.create_wiki_page(**arguments)
+            page = client.create_wiki_page(**arguments)
+            result = {
+                "path": page.page.path,
+                "url": page.page.url,
+                "content": page.page.content,
+            }
         elif name == "get_wiki_page":
-            result = client.get_wiki_page(**arguments)
+            page = client.get_wiki_page(**arguments)
+            result = {
+                "path": page.page.path,
+                "url": page.page.url,
+                "content": page.page.content,
+            }
         elif name == "update_wiki_page":
-            result = client.update_wiki_page(**arguments)
+            page = client.update_wiki_page(**arguments)
+            result = {
+                "path": page.page.path,
+                "url": page.page.url,
+                "content": page.page.content,
+            }
         elif name == "delete_wiki_page":
-            result = client.delete_wiki_page(**arguments)
+            deleted_page = client.delete_wiki_page(**arguments)
+            result = {
+                "message": f"Wiki page '{arguments['path']}' deleted successfully.",
+                "path": deleted_page.path,
+                "url": deleted_page.url,
+            }
         elif name == "list_wiki_pages":
             result = client.list_wiki_pages(**arguments)
         elif name == "get_wikis":
-            result = client.get_wikis(**arguments)
+            wikis = client.get_wikis(**arguments)
+            result = [
+                {
+                    "id": wiki.id,
+                    "name": wiki.name,
+                    "url": wiki.url,
+                    "remote_url": wiki.remote_url,
+                }
+                for wiki in wikis
+            ]
+        elif name == "create_wiki":
+            wiki = client.create_wiki(**arguments)
+            result = {
+                "id": wiki.id,
+                "name": wiki.name,
+                "url": wiki.url,
+                "remote_url": wiki.remote_url,
+            }
         elif name == "list_repositories":
             result = client.list_repositories(**arguments)
         elif name == "list_files":
@@ -254,6 +341,19 @@ def main():
             projects = client.get_projects()
             project_names = [p.name for p in projects]
             result = {"projects": project_names}
+        elif name == "list_available_tools":
+            result = [tool.name for tool in tools]
+        elif name == "get_tool_documentation":
+            tool_name = arguments.get("tool_name")
+            tool_doc = next((tool for tool in tools if tool.name == tool_name), None)
+            if tool_doc:
+                result = {
+                    "name": tool_doc.name,
+                    "description": tool_doc.description,
+                    "inputSchema": tool_doc.inputSchema,
+                }
+            else:
+                result = {"error": f"Tool '{tool_name}' not found."}
         
         if result is None:
             return [types.TextContent(type="text", text=f"Tool '{name}' not found.")]

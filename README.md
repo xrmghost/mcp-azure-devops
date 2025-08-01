@@ -46,6 +46,10 @@ The MCP server will expose a set of tools to interact with Azure DevOps, categor
 -   `list_available_tools`: Lists all available tools.
 -   `get_tool_documentation`: Gets the documentation for a specific tool.
 
+#### User Management (Under Development)
+-   `list_users`: Lists all users in the organization.
+    -   **Note:** This feature is currently under development and requires a Personal Access Token (PAT) with **Graph (Read)** permissions.
+
 ### Planned Features
 
 -   **Repository Management (Write operations):**
@@ -104,6 +108,7 @@ This guide will walk you through setting up the `mcp-azure-devops` server.
         -   **Work Items:** Read & write
         -   **Wiki:** Read & write
         -   **Code:** Read
+        -   **Graph:** Read (for the `list_users` feature)
     -   Click **Create** and **copy the token immediately**. You will not be able to see it again.
 
 2.  **Configure the MCP Server in Cline:**

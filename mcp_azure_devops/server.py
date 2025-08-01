@@ -279,6 +279,11 @@ def main():
                 "required": ["tool_name"],
             }
         ),
+        types.Tool(
+            name="list_users",
+            description="Lists all users in the organization.",
+            inputSchema={}
+        ),
     ]
 
     @server.list_tools()
@@ -390,6 +395,16 @@ def main():
                 }
             else:
                 result = {"error": f"Tool '{tool_name}' not found."}
+        elif name == "list_users":
+            users = client.list_users()
+            result = [
+                {
+                    "display_name": user.display_name,
+                    "mail_address": user.mail_address,
+                    "origin_id": user.origin_id,
+                }
+                for user in users.value
+            ]
         
         if result is None:
             return [types.TextContent(type="text", text=f"Tool '{name}' not found.")]

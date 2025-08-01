@@ -3,6 +3,7 @@ from msrest.authentication import BasicAuthentication
 from azure.devops.connection import Connection
 from azure.devops.v7_1.work_item_tracking.models import JsonPatchOperation, Wiql
 from azure.devops.v7_1.wiki.models import WikiCreateParametersV2, WikiPagesBatchRequest
+from azure.devops.v7_1.graph.graph_client import GraphClient
 
 class AzureDevOpsClient:
     def __init__(self):
@@ -19,6 +20,10 @@ class AzureDevOpsClient:
         self.work_item_tracking_client = self.connection.clients.get_work_item_tracking_client()
         self.wiki_client = self.connection.clients.get_wiki_client()
         self.git_client = self.connection.clients.get_git_client()
+        self.graph_client = self.connection.clients.get_graph_client()
+
+    def list_users(self):
+        return self.graph_client.list_users()
 
     def set_project_context(self, project):
         self.project_context = project

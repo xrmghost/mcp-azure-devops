@@ -64,15 +64,22 @@ class AzureDevOpsClient:
             type=work_item_type
         )
 
-    def get_work_item(self, work_item_id):
-        work_item = self.work_item_tracking_client.get_work_item(id=work_item_id)
-        return {
+    def get_work_item(self, work_item_id, expand=None):
+        work_item = self.work_item_tracking_client.get_work_item(id=work_item_id, expand=expand)
+        result = {
             "id": work_item.id,
             "url": work_item.url,
-            "title": work_item.fields.get("System.Title"),
-            "state": work_item.fields.get("System.State"),
-            "description": work_item.fields.get("System.Description"),
+            "fields": work_item.fields
         }
+        if work_item.relations:
+            result["relations"] = [
+                {
+                    "rel": r.rel,
+                    "url": r.url,
+                    "attributes": r.attributes
+                } for r in work_item.relations
+            ]
+        return result
 
     def update_work_item(self, work_item_id, updates, relations=None):
         patch_document = [

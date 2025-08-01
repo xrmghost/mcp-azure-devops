@@ -44,6 +44,7 @@ def main():
             inputSchema={
                 "properties": {
                     "work_item_id": {"type": "integer", "description": "The ID of the work item."},
+                    "expand": {"type": "string", "description": "The expand option for the work item. Use 'All' to get all fields."},
                 },
                 "required": ["work_item_id"],
             }
@@ -243,6 +244,36 @@ def main():
                 "required": ["tool_name"],
             }
         ),
+        types.Tool(
+            name="docs",
+            description="Gets the documentation for a specific tool.",
+            inputSchema={
+                "properties": {
+                    "tool_name": {"type": "string", "description": "The name of the tool to get documentation for."},
+                },
+                "required": ["tool_name"],
+            }
+        ),
+        types.Tool(
+            name="help",
+            description="Gets the documentation for a specific tool.",
+            inputSchema={
+                "properties": {
+                    "tool_name": {"type": "string", "description": "The name of the tool to get documentation for."},
+                },
+                "required": ["tool_name"],
+            }
+        ),
+        types.Tool(
+            name="get_documentation",
+            description="Gets the documentation for a specific tool.",
+            inputSchema={
+                "properties": {
+                    "tool_name": {"type": "string", "description": "The name of the tool to get documentation for."},
+                },
+                "required": ["tool_name"],
+            }
+        ),
     ]
 
     @server.list_tools()
@@ -343,7 +374,7 @@ def main():
             result = {"projects": project_names}
         elif name == "list_available_tools":
             result = [tool.name for tool in tools]
-        elif name == "get_tool_documentation":
+        elif name in ["get_tool_documentation", "docs", "help", "get_documentation"]:
             tool_name = arguments.get("tool_name")
             tool_doc = next((tool for tool in tools if tool.name == tool_name), None)
             if tool_doc:

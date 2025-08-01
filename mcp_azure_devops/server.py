@@ -230,8 +230,13 @@ def main():
             inputSchema={}
         ),
         types.Tool(
-            name="list_available_tools",
+            name="list_tools",
             description="Lists all available tools.",
+            inputSchema={}
+        ),
+        types.Tool(
+            name="list_available_tools",
+            description="Lists all available tools. Alias for list_tools.",
             inputSchema={}
         ),
         types.Tool(
@@ -372,7 +377,7 @@ def main():
             projects = client.get_projects()
             project_names = [p.name for p in projects]
             result = {"projects": project_names}
-        elif name == "list_available_tools":
+        elif name in ["list_tools", "list_available_tools"]:
             result = [tool.name for tool in tools]
         elif name in ["get_tool_documentation", "docs", "help", "get_documentation"]:
             tool_name = arguments.get("tool_name")

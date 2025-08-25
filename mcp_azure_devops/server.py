@@ -9,7 +9,14 @@ def main():
     """
     Main function to run the MCP server.
     """
-    server = Server(name="mcp-azure-devops", version="0.1.0")
+    server = Server(
+        name="mcp-azure-devops", 
+        version="0.1.0",
+        instructions="An open-source Model Context Protocol (MCP) server for seamless integration with Azure DevOps. "
+                    "This server provides tools to interact with Azure DevOps projects, including work item management, "
+                    "wiki operations, repository access, and project administration. "
+                    "Configure AZURE_DEVOPS_ORG_URL and AZURE_DEVOPS_PAT environment variables to enable full functionality."
+    )
     client = AzureDevOpsClient()
 
     tools = [
@@ -284,6 +291,11 @@ def main():
             description="Lists all users in the organization.",
             inputSchema={}
         ),
+        types.Tool(
+            name="server_info",
+            description="Gets information about the MCP server status and configuration.",
+            inputSchema={}
+        ),
     ]
 
     @server.list_tools()
@@ -293,96 +305,9 @@ def main():
     @server.call_tool()
     async def call_tool(name: str, arguments: dict) -> list[types.ContentBlock]:
         result = None
-        if name == "create_work_item":
-            work_item = client.create_work_item(**arguments)
-            result = {
-                "id": work_item.id,
-                "url": work_item.url,
-                "title": work_item.fields['System.Title']
-            }
-        elif name == "get_work_item":
-            result = client.get_work_item(**arguments)
-        elif name == "update_work_item":
-            work_item = client.update_work_item(**arguments)
-            result = {
-                "id": work_item.id,
-                "url": work_item.url,
-                "title": work_item.fields['System.Title'],
-                "state": work_item.fields['System.State']
-            }
-        elif name == "delete_work_item":
-            delete_result = client.delete_work_item(**arguments)
-            result = {
-                "message": f"Work item {arguments['work_item_id']} has been deleted successfully.",
-                "deleted_date": delete_result.deleted_date.isoformat() if delete_result.deleted_date else None,
-                "deleted_by": delete_result.deleted_by.display_name if delete_result.deleted_by else None
-            }
-        elif name == "search_work_items":
-            result = client.search_work_items(**arguments)
-        elif name == "create_wiki_page":
-            page = client.create_wiki_page(**arguments)
-            result = {
-                "path": page.page.path,
-                "url": page.page.url,
-                "content": page.page.content,
-            }
-        elif name == "get_wiki_page":
-            page = client.get_wiki_page(**arguments)
-            result = {
-                "path": page.page.path,
-                "url": page.page.url,
-                "content": page.page.content,
-            }
-        elif name == "update_wiki_page":
-            page = client.update_wiki_page(**arguments)
-            result = {
-                "path": page.page.path,
-                "url": page.page.url,
-                "content": page.page.content,
-            }
-        elif name == "delete_wiki_page":
-            deleted_page = client.delete_wiki_page(**arguments)
-            result = {
-                "message": f"Wiki page '{arguments['path']}' deleted successfully.",
-                "path": deleted_page.path,
-                "url": deleted_page.url,
-            }
-        elif name == "list_wiki_pages":
-            result = client.list_wiki_pages(**arguments)
-        elif name == "get_wikis":
-            wikis = client.get_wikis(**arguments)
-            result = [
-                {
-                    "id": wiki.id,
-                    "name": wiki.name,
-                    "url": wiki.url,
-                    "remote_url": wiki.remote_url,
-                }
-                for wiki in wikis
-            ]
-        elif name == "create_wiki":
-            wiki = client.create_wiki(**arguments)
-            result = {
-                "id": wiki.id,
-                "name": wiki.name,
-                "url": wiki.url,
-                "remote_url": wiki.remote_url,
-            }
-        elif name == "list_repositories":
-            result = client.list_repositories(**arguments)
-        elif name == "list_files":
-            result = client.list_files(**arguments)
-        elif name == "get_file_content":
-            result = client.get_file_content(**arguments)
-        elif name == "set_project_context":
-            result = client.set_project_context(**arguments)
-        elif name == "clear_project_context":
-            result = client.clear_project_context()
-        elif name == "get_projects":
-            projects = client.get_projects()
-            project_names = [p.name for p in projects]
-            result = {"projects": project_names}
-        elif name in ["list_tools", "list_available_tools"]:
+        
+        # Handle tools that don't require Azure DevOps connection
+        if name in ["list_tools", "list_available_tools"]:
             result = [tool.name for tool in tools]
         elif name in ["get_tool_documentation", "docs", "help", "get_documentation"]:
             tool_name = arguments.get("tool_name")
@@ -395,16 +320,153 @@ def main():
                 }
             else:
                 result = {"error": f"Tool '{tool_name}' not found."}
-        elif name == "list_users":
-            users = client.list_users()
-            result = [
-                {
-                    "display_name": user.display_name,
-                    "mail_address": user.mail_address,
-                    "origin_id": user.origin_id,
+        elif name == "server_info":
+            import os
+            org_url = os.getenv("AZURE_DEVOPS_ORG_URL")
+            pat_configured = bool(os.getenv("AZURE_DEVOPS_PAT"))
+            
+            result = {
+                "server_name": "mcp-azure-devops",
+                "server_version": "0.1.0",
+                "mcp_version": "1.13.1",
+                "description": "Model Context Protocol server for Azure DevOps integration",
+                "configuration": {
+                    "azure_devops_org_url": org_url if org_url else "Not configured",
+                    "azure_devops_pat": "Configured" if pat_configured else "Not configured",
+                    "connection_status": "Ready" if (org_url and pat_configured) else "Missing credentials"
+                },
+                "available_tools": len(tools),
+                "tool_categories": [
+                    "Work Item Management (CRUD)",
+                    "Wiki Management (CRUD)", 
+                    "Repository Management (Read-only)",
+                    "Project Administration",
+                    "Server Documentation"
+                ],
+                "setup_instructions": {
+                    "step_1": "Set AZURE_DEVOPS_ORG_URL environment variable (e.g., https://dev.azure.com/your-organization)",
+                    "step_2": "Set AZURE_DEVOPS_PAT environment variable with your Personal Access Token",
+                    "step_3": "Ensure PAT has permissions: Work Items (Read & Write), Wiki (Read & Write), Code (Read), Graph (Read)",
+                    "step_4": "Restart the MCP server to apply configuration"
                 }
-                for user in users.value
-            ]
+            }
+        
+        # Handle Azure DevOps operations with error handling
+        else:
+            try:
+                if name == "create_work_item":
+                    work_item = client.create_work_item(**arguments)
+                    result = {
+                        "id": work_item.id,
+                        "url": work_item.url,
+                        "title": work_item.fields['System.Title']
+                    }
+                elif name == "get_work_item":
+                    result = client.get_work_item(**arguments)
+                elif name == "update_work_item":
+                    work_item = client.update_work_item(**arguments)
+                    result = {
+                        "id": work_item.id,
+                        "url": work_item.url,
+                        "title": work_item.fields['System.Title'],
+                        "state": work_item.fields['System.State']
+                    }
+                elif name == "delete_work_item":
+                    delete_result = client.delete_work_item(**arguments)
+                    result = {
+                        "message": f"Work item {arguments['work_item_id']} has been deleted successfully.",
+                        "deleted_date": delete_result.deleted_date.isoformat() if delete_result.deleted_date else None,
+                        "deleted_by": delete_result.deleted_by.display_name if delete_result.deleted_by else None
+                    }
+                elif name == "search_work_items":
+                    result = client.search_work_items(**arguments)
+                elif name == "create_wiki_page":
+                    page = client.create_wiki_page(**arguments)
+                    result = {
+                        "path": page.page.path,
+                        "url": page.page.url,
+                        "content": page.page.content,
+                    }
+                elif name == "get_wiki_page":
+                    page = client.get_wiki_page(**arguments)
+                    result = {
+                        "path": page.page.path,
+                        "url": page.page.url,
+                        "content": page.page.content,
+                    }
+                elif name == "update_wiki_page":
+                    page = client.update_wiki_page(**arguments)
+                    result = {
+                        "path": page.page.path,
+                        "url": page.page.url,
+                        "content": page.page.content,
+                    }
+                elif name == "delete_wiki_page":
+                    deleted_page = client.delete_wiki_page(**arguments)
+                    result = {
+                        "message": f"Wiki page '{arguments['path']}' deleted successfully.",
+                        "path": deleted_page.path,
+                        "url": deleted_page.url,
+                    }
+                elif name == "list_wiki_pages":
+                    result = client.list_wiki_pages(**arguments)
+                elif name == "get_wikis":
+                    wikis = client.get_wikis(**arguments)
+                    result = [
+                        {
+                            "id": wiki.id,
+                            "name": wiki.name,
+                            "url": wiki.url,
+                            "remote_url": wiki.remote_url,
+                        }
+                        for wiki in wikis
+                    ]
+                elif name == "create_wiki":
+                    wiki = client.create_wiki(**arguments)
+                    result = {
+                        "id": wiki.id,
+                        "name": wiki.name,
+                        "url": wiki.url,
+                        "remote_url": wiki.remote_url,
+                    }
+                elif name == "list_repositories":
+                    result = client.list_repositories(**arguments)
+                elif name == "list_files":
+                    result = client.list_files(**arguments)
+                elif name == "get_file_content":
+                    result = client.get_file_content(**arguments)
+                elif name == "set_project_context":
+                    result = client.set_project_context(**arguments)
+                elif name == "clear_project_context":
+                    result = client.clear_project_context()
+                elif name == "get_projects":
+                    projects = client.get_projects()
+                    project_names = [p.name for p in projects]
+                    result = {"projects": project_names}
+                elif name == "list_users":
+                    users = client.list_users()
+                    result = [
+                        {
+                            "display_name": user.display_name,
+                            "mail_address": user.mail_address,
+                            "origin_id": user.origin_id,
+                        }
+                        for user in users.value
+                    ]
+                else:
+                    result = {"error": f"Unknown tool: {name}"}
+                    
+            except ValueError as e:
+                if "environment variables must be set" in str(e):
+                    result = {
+                        "error": "Azure DevOps credentials not configured",
+                        "message": "Please set AZURE_DEVOPS_ORG_URL and AZURE_DEVOPS_PAT environment variables",
+                        "setup_help": "Use the 'server_info' tool for detailed setup instructions"
+                    }
+                else:
+                    result = {"error": f"Configuration error: {str(e)}"}
+            except Exception as e:
+                result = {"error": f"Operation failed: {str(e)}"}
         
         if result is None:
             return [types.TextContent(type="text", text=f"Tool '{name}' not found.")]

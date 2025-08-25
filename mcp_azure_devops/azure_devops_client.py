@@ -10,33 +10,63 @@ class AzureDevOpsClient:
         self.org_url = os.getenv("AZURE_DEVOPS_ORG_URL")
         self.pat = os.getenv("AZURE_DEVOPS_PAT")
         self.project_context = None
+        self._initialized = False
+        self._initialization_error = None
         
-        if not self.org_url or not self.pat:
-            raise ValueError("AZURE_DEVOPS_ORG_URL and AZURE_DEVOPS_PAT environment variables must be set.")
+        # Initialize clients as None - they'll be created on first use
+        self.credentials = None
+        self.connection = None
+        self.core_client = None
+        self.work_item_tracking_client = None
+        self.wiki_client = None
+        self.git_client = None
+        self.graph_client = None
+
+    def _ensure_initialized(self):
+        """Ensure the client is initialized with proper credentials."""
+        if self._initialized:
+            return
             
-        self.credentials = BasicAuthentication('', self.pat)
-        self.connection = Connection(base_url=self.org_url, creds=self.credentials)
-        self.core_client = self.connection.clients.get_core_client()
-        self.work_item_tracking_client = self.connection.clients.get_work_item_tracking_client()
-        self.wiki_client = self.connection.clients.get_wiki_client()
-        self.git_client = self.connection.clients.get_git_client()
-        self.graph_client = self.connection.clients.get_graph_client()
+        if self._initialization_error:
+            raise self._initialization_error
+            
+        if not self.org_url or not self.pat:
+            self._initialization_error = ValueError("AZURE_DEVOPS_ORG_URL and AZURE_DEVOPS_PAT environment variables must be set.")
+            raise self._initialization_error
+            
+        try:
+            self.credentials = BasicAuthentication('', self.pat)
+            self.connection = Connection(base_url=self.org_url, creds=self.credentials)
+            self.core_client = self.connection.clients.get_core_client()
+            self.work_item_tracking_client = self.connection.clients.get_work_item_tracking_client()
+            self.wiki_client = self.connection.clients.get_wiki_client()
+            self.git_client = self.connection.clients.get_git_client()
+            self.graph_client = self.connection.clients.get_graph_client()
+            self._initialized = True
+        except Exception as e:
+            self._initialization_error = e
+            raise
 
     def list_users(self):
+        self._ensure_initialized()
         return self.graph_client.list_users()
 
     def set_project_context(self, project):
+        # This doesn't require Azure DevOps connection
         self.project_context = project
         return {"message": f"Project context set to '{project}'."}
 
     def clear_project_context(self):
+        # This doesn't require Azure DevOps connection
         self.project_context = None
         return {"message": "Project context cleared."}
 
     def get_projects(self):
+        self._ensure_initialized()
         return self.core_client.get_projects()
 
     def create_work_item(self, project, work_item_type, title, description, relations=None):
+        self._ensure_initialized()
         patch_document = [
             JsonPatchOperation(
                 op="add",
@@ -70,6 +100,7 @@ class AzureDevOpsClient:
         )
 
     def get_work_item(self, work_item_id, expand=None):
+        self._ensure_initialized()
         work_item = self.work_item_tracking_client.get_work_item(id=work_item_id, expand=expand)
         result = {
             "id": work_item.id,
@@ -87,6 +118,7 @@ class AzureDevOpsClient:
         return result
 
     def update_work_item(self, work_item_id, updates, relations=None):
+        self._ensure_initialized()
         patch_document = [
             JsonPatchOperation(
                 op="add",
@@ -114,9 +146,11 @@ class AzureDevOpsClient:
         )
 
     def delete_work_item(self, work_item_id):
+        self._ensure_initialized()
         return self.work_item_tracking_client.delete_work_item(id=work_item_id)
 
     def search_work_items(self, project, wiql_query):
+        self._ensure_initialized()
         # Add project filter to the WIQL query if not already present
         if "[System.TeamProject]" not in wiql_query and "WHERE" in wiql_query.upper():
             # Insert project filter into existing WHERE clause
@@ -145,6 +179,7 @@ class AzureDevOpsClient:
             return []
 
     def create_wiki_page(self, project, wiki_identifier, path, content):
+        self._ensure_initialized()
         parameters = {
             "content": content
         }
@@ -157,6 +192,7 @@ class AzureDevOpsClient:
         )
 
     def get_wiki_page(self, project, wiki_identifier, path):
+        self._ensure_initialized()
         return self.wiki_client.get_page(
             project=project,
             wiki_identifier=wiki_identifier,
@@ -165,6 +201,7 @@ class AzureDevOpsClient:
         )
 
     def update_wiki_page(self, project, wiki_identifier, path, content):
+        self._ensure_initialized()
         page = self.wiki_client.get_page(
             project=project,
             wiki_identifier=wiki_identifier,
@@ -183,6 +220,7 @@ class AzureDevOpsClient:
         )
 
     def delete_wiki_page(self, project, wiki_identifier, path):
+        self._ensure_initialized()
         return self.wiki_client.delete_page(
             project=project,
             wiki_identifier=wiki_identifier,
@@ -190,6 +228,7 @@ class AzureDevOpsClient:
         )
 
     def list_wiki_pages(self, project, wiki_identifier):
+        self._ensure_initialized()
         pages_batch_request = WikiPagesBatchRequest(
             top=100  # Retrieve up to 100 pages
         )
@@ -211,17 +250,21 @@ class AzureDevOpsClient:
         ]
 
     def get_wikis(self, project):
+        self._ensure_initialized()
         return self.wiki_client.get_all_wikis(project=project)
 
     def create_wiki(self, project, name):
+        self._ensure_initialized()
         project_object = self.core_client.get_project(project)
         wiki_params = WikiCreateParametersV2(name=name, type='projectWiki', project_id=project_object.id)
         return self.wiki_client.create_wiki(wiki_create_params=wiki_params, project=project)
 
     def list_repositories(self, project):
+        self._ensure_initialized()
         return self.git_client.get_repositories(project=project)
 
     def list_files(self, project, repository_id, path):
+        self._ensure_initialized()
         return self.git_client.get_items(
             project=project,
             repository_id=repository_id,
@@ -230,6 +273,7 @@ class AzureDevOpsClient:
         )
 
     def get_file_content(self, project, repository_id, path):
+        self._ensure_initialized()
         return self.git_client.get_item_text(
             project=project,
             repository_id=repository_id,

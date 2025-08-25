@@ -2,6 +2,15 @@
 
 An open-source Model Context Protocol (MCP) server for seamless integration with Azure DevOps.
 
+## ✨ What's New
+
+**Enhanced Tool Discovery & Self-Documentation**
+- 🔍 **Full Tool Discovery**: The server now properly exposes all 26+ tools to MCP clients like Cline
+- 🚀 **Zero-Config Startup**: Server starts successfully even without Azure DevOps credentials configured
+- 📖 **Self-Documenting**: Use the `server_info` tool to get configuration status and setup instructions
+- 🛠️ **Better Error Handling**: Helpful error messages guide you through configuration when credentials are missing
+- 📝 **Built-in Help**: Use `list_tools`, `docs <tool_name>`, or `help <tool_name>` for tool documentation
+
 ## Mission
 
 To create a robust, open-source Model Context Protocol (MCP) server that provides seamless integration with Azure DevOps. This server will empower AI agents to interact with Azure DevOps projects, managing work items, wikis, and repositories, thereby streamlining development workflows.
@@ -42,9 +51,11 @@ The MCP server will expose a set of tools to interact with Azure DevOps, categor
 -   `clear_project_context`: To revert to the organization-level scope.
 -   `get_projects`: To list all projects in the organization.
 
-#### Server Documentation
--   `list_available_tools`: Lists all available tools.
--   `get_tool_documentation`: Gets the documentation for a specific tool.
+#### Server Documentation & Discovery
+-   `server_info`: **NEW!** Get server status, configuration details, and setup instructions
+-   `list_available_tools` / `list_tools`: Lists all available tools
+-   `get_tool_documentation` / `docs` / `help`: Gets documentation for a specific tool
+-   **Self-Discovery**: All tools are now properly discoverable in MCP clients like Cline
 
 #### User Management (Under Development)
 -   `list_users`: Lists all users in the organization.
@@ -64,6 +75,16 @@ The MCP server will expose a set of tools to interact with Azure DevOps, categor
 ## Getting Started
 
 This guide will walk you through setting up the `mcp-azure-devops` server.
+
+### 🚀 Quick Start
+
+The server now starts immediately and is discoverable in MCP clients like Cline, even without Azure DevOps credentials! 
+
+1. **Install**: `pip install mcp-azure-devops` (or clone and install locally)
+2. **Configure in Cline**: Add the server to your MCP settings
+3. **Discover Tools**: The server will show all 26+ available tools
+4. **Get Help**: Use the `server_info` tool to check configuration status and get setup instructions
+5. **Configure Azure DevOps**: Set environment variables when you're ready to use Azure DevOps features
 
 ### Prerequisites
 - Python 3.10 or higher

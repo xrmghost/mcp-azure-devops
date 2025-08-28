@@ -284,6 +284,131 @@ def main():
             description="Lists all users in the organization.",
             inputSchema={}
         ),
+        types.Tool(
+            name="update_wiki_page_safe",
+            description="Safely updates a wiki page with automatic retry on version conflicts.",
+            inputSchema={
+                "properties": {
+                    "project": {"type": "string", "description": "The name or ID of the project."},
+                    "wiki_identifier": {"type": "string", "description": "The name or ID of the wiki."},
+                    "path": {"type": "string", "description": "The path of the wiki page."},
+                    "content": {"type": "string", "description": "The content of the wiki page."},
+                    "max_retries": {"type": "integer", "description": "Maximum number of retry attempts (default: 3)."},
+                },
+                "required": ["project", "wiki_identifier", "path", "content"],
+            }
+        ),
+        types.Tool(
+            name="create_or_update_wiki_page_smart",
+            description="Creates a new wiki page or updates existing one intelligently.",
+            inputSchema={
+                "properties": {
+                    "project": {"type": "string", "description": "The name or ID of the project."},
+                    "wiki_identifier": {"type": "string", "description": "The name or ID of the wiki."},
+                    "path": {"type": "string", "description": "The path of the wiki page."},
+                    "content": {"type": "string", "description": "The content of the wiki page."},
+                },
+                "required": ["project", "wiki_identifier", "path", "content"],
+            }
+        ),
+        types.Tool(
+            name="search_wiki_pages",
+            description="Search for wiki pages by title or content.",
+            inputSchema={
+                "properties": {
+                    "project": {"type": "string", "description": "The name or ID of the project."},
+                    "wiki_identifier": {"type": "string", "description": "The name or ID of the wiki."},
+                    "search_term": {"type": "string", "description": "The term to search for in page titles and content."},
+                },
+                "required": ["project", "wiki_identifier", "search_term"],
+            }
+        ),
+        types.Tool(
+            name="get_wiki_page_tree",
+            description="Get hierarchical structure of wiki pages.",
+            inputSchema={
+                "properties": {
+                    "project": {"type": "string", "description": "The name or ID of the project."},
+                    "wiki_identifier": {"type": "string", "description": "The name or ID of the wiki."},
+                },
+                "required": ["project", "wiki_identifier"],
+            }
+        ),
+        types.Tool(
+            name="find_wiki_by_name",
+            description="Find wikis by partial name match.",
+            inputSchema={
+                "properties": {
+                    "project": {"type": "string", "description": "The name or ID of the project."},
+                    "partial_name": {"type": "string", "description": "Partial name to search for."},
+                },
+                "required": ["project", "partial_name"],
+            }
+        ),
+        types.Tool(
+            name="get_wiki_page_by_title",
+            description="Find wiki page by title instead of exact path.",
+            inputSchema={
+                "properties": {
+                    "project": {"type": "string", "description": "The name or ID of the project."},
+                    "wiki_identifier": {"type": "string", "description": "The name or ID of the wiki."},
+                    "title": {"type": "string", "description": "The title to search for."},
+                },
+                "required": ["project", "wiki_identifier", "title"],
+            }
+        ),
+        types.Tool(
+            name="list_all_wikis_in_organization",
+            description="List all wikis across all projects in the organization.",
+            inputSchema={}
+        ),
+        types.Tool(
+            name="get_recent_wiki_pages",
+            description="Get recently modified wiki pages.",
+            inputSchema={
+                "properties": {
+                    "project": {"type": "string", "description": "The name or ID of the project."},
+                    "wiki_identifier": {"type": "string", "description": "The name or ID of the wiki."},
+                    "limit": {"type": "integer", "description": "Maximum number of pages to return (default: 10)."},
+                },
+                "required": ["project", "wiki_identifier"],
+            }
+        ),
+        types.Tool(
+            name="get_wiki_page_suggestions",
+            description="Get page suggestions based on partial input.",
+            inputSchema={
+                "properties": {
+                    "project": {"type": "string", "description": "The name or ID of the project."},
+                    "wiki_identifier": {"type": "string", "description": "The name or ID of the wiki."},
+                    "partial_input": {"type": "string", "description": "Partial input to get suggestions for."},
+                },
+                "required": ["project", "wiki_identifier", "partial_input"],
+            }
+        ),
+        types.Tool(
+            name="create_wiki_pages_batch",
+            description="Create multiple wiki pages at once.",
+            inputSchema={
+                "properties": {
+                    "project": {"type": "string", "description": "The name or ID of the project."},
+                    "wiki_identifier": {"type": "string", "description": "The name or ID of the wiki."},
+                    "pages_data": {
+                        "type": "array",
+                        "description": "List of pages to create.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "path": {"type": "string", "description": "The path of the wiki page."},
+                                "content": {"type": "string", "description": "The content of the wiki page."}
+                            },
+                            "required": ["path", "content"]
+                        }
+                    },
+                },
+                "required": ["project", "wiki_identifier", "pages_data"],
+            }
+        ),
     ]
 
     @server.list_tools()
@@ -405,6 +530,46 @@ def main():
                 }
                 for user in users.value
             ]
+        elif name == "update_wiki_page_safe":
+            page = client.update_wiki_page_safe(**arguments)
+            result = {
+                "path": page.page.path,
+                "url": page.page.url,
+                "content": page.page.content,
+                "message": "Wiki page updated successfully with safe retry mechanism."
+            }
+        elif name == "create_or_update_wiki_page_smart":
+            page = client.create_or_update_wiki_page_smart(**arguments)
+            result = {
+                "path": page.page.path,
+                "url": page.page.url,
+                "content": page.page.content,
+                "message": "Wiki page created or updated successfully."
+            }
+        elif name == "search_wiki_pages":
+            result = client.search_wiki_pages(**arguments)
+        elif name == "get_wiki_page_tree":
+            result = client.get_wiki_page_tree(**arguments)
+        elif name == "find_wiki_by_name":
+            result = client.find_wiki_by_name(**arguments)
+        elif name == "get_wiki_page_by_title":
+            page = client.get_wiki_page_by_title(**arguments)
+            if page:
+                result = {
+                    "path": page.page.path,
+                    "url": page.page.url,
+                    "content": page.page.content,
+                }
+            else:
+                result = {"message": f"No wiki page found with title containing '{arguments['title']}'"}
+        elif name == "list_all_wikis_in_organization":
+            result = client.list_all_wikis_in_organization()
+        elif name == "get_recent_wiki_pages":
+            result = client.get_recent_wiki_pages(**arguments)
+        elif name == "get_wiki_page_suggestions":
+            result = client.get_wiki_page_suggestions(**arguments)
+        elif name == "create_wiki_pages_batch":
+            result = client.create_wiki_pages_batch(**arguments)
         
         if result is None:
             return [types.TextContent(type="text", text=f"Tool '{name}' not found.")]

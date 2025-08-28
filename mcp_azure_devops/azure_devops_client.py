@@ -16,11 +16,43 @@ class AzureDevOpsClient:
             
         self.credentials = BasicAuthentication('', self.pat)
         self.connection = Connection(base_url=self.org_url, creds=self.credentials)
-        self.core_client = self.connection.clients.get_core_client()
-        self.work_item_tracking_client = self.connection.clients.get_work_item_tracking_client()
-        self.wiki_client = self.connection.clients.get_wiki_client()
-        self.git_client = self.connection.clients.get_git_client()
-        self.graph_client = self.connection.clients.get_graph_client()
+        
+        # Initialize clients lazily to avoid connection issues during server startup
+        self._core_client = None
+        self._work_item_tracking_client = None
+        self._wiki_client = None
+        self._git_client = None
+        self._graph_client = None
+
+    @property
+    def core_client(self):
+        if self._core_client is None:
+            self._core_client = self.connection.clients.get_core_client()
+        return self._core_client
+
+    @property
+    def work_item_tracking_client(self):
+        if self._work_item_tracking_client is None:
+            self._work_item_tracking_client = self.connection.clients.get_work_item_tracking_client()
+        return self._work_item_tracking_client
+
+    @property
+    def wiki_client(self):
+        if self._wiki_client is None:
+            self._wiki_client = self.connection.clients.get_wiki_client()
+        return self._wiki_client
+
+    @property
+    def git_client(self):
+        if self._git_client is None:
+            self._git_client = self.connection.clients.get_git_client()
+        return self._git_client
+
+    @property
+    def graph_client(self):
+        if self._graph_client is None:
+            self._graph_client = self.connection.clients.get_graph_client()
+        return self._graph_client
 
     def list_users(self):
         return self.graph_client.list_users()
@@ -181,6 +213,257 @@ class AzureDevOpsClient:
             parameters=parameters,
             version=page.e_tag
         )
+
+    def update_wiki_page_safe(self, project, wiki_identifier, path, content, max_retries=3):
+        """
+        Safely updates a wiki page with automatic retry on version conflicts.
+        """
+        for attempt in range(max_retries):
+            try:
+                # Get the latest version of the page
+                page = self.wiki_client.get_page(
+                    project=project,
+                    wiki_identifier=wiki_identifier,
+                    path=path
+                )
+                
+                parameters = {
+                    "content": content
+                }
+                return self.wiki_client.create_or_update_page(
+                    project=project,
+                    wiki_identifier=wiki_identifier,
+                    path=path,
+                    parameters=parameters,
+                    version=page.e_tag
+                )
+            except Exception as e:
+                if "version" in str(e).lower() and attempt < max_retries - 1:
+                    # Version conflict, retry with fresh version
+                    continue
+                else:
+                    raise e
+        
+        raise Exception(f"Failed to update wiki page after {max_retries} attempts due to version conflicts")
+
+    def create_or_update_wiki_page_smart(self, project, wiki_identifier, path, content):
+        """
+        Creates a new wiki page or updates existing one intelligently.
+        """
+        try:
+            # Try to update first
+            return self.update_wiki_page_safe(project, wiki_identifier, path, content)
+        except Exception as e:
+            if "not found" in str(e).lower() or "404" in str(e):
+                # Page doesn't exist, create it
+                return self.create_wiki_page(project, wiki_identifier, path, content)
+            else:
+                raise e
+
+    def search_wiki_pages(self, project, wiki_identifier, search_term):
+        """
+        Search for wiki pages by title or content.
+        """
+        pages = self.list_wiki_pages(project, wiki_identifier)
+        matching_pages = []
+        
+        for page_info in pages:
+            try:
+                # Get page content to search in
+                page = self.wiki_client.get_page(
+                    project=project,
+                    wiki_identifier=wiki_identifier,
+                    path=page_info["path"],
+                    include_content=True
+                )
+                
+                # Search in path (title) and content
+                if (search_term.lower() in page_info["path"].lower() or 
+                    (page.page.content and search_term.lower() in page.page.content.lower())):
+                    matching_pages.append({
+                        "path": page_info["path"],
+                        "url": page_info["url"],
+                        "content_preview": page.page.content[:200] + "..." if page.page.content and len(page.page.content) > 200 else page.page.content
+                    })
+            except Exception:
+                # Skip pages that can't be accessed
+                continue
+                
+        return matching_pages
+
+    def get_wiki_page_tree(self, project, wiki_identifier):
+        """
+        Get hierarchical structure of wiki pages.
+        """
+        pages = self.list_wiki_pages(project, wiki_identifier)
+        
+        # Organize pages into a tree structure
+        tree = {}
+        for page in pages:
+            path_parts = page["path"].strip("/").split("/")
+            current_level = tree
+            
+            for i, part in enumerate(path_parts):
+                if part not in current_level:
+                    current_level[part] = {
+                        "children": {},
+                        "info": None
+                    }
+                
+                if i == len(path_parts) - 1:
+                    # This is the final part, store page info
+                    current_level[part]["info"] = page
+                
+                current_level = current_level[part]["children"]
+        
+        return tree
+
+    def find_wiki_by_name(self, project, partial_name):
+        """
+        Find wikis by partial name match.
+        """
+        wikis = self.get_wikis(project)
+        matching_wikis = []
+        
+        for wiki in wikis:
+            if partial_name.lower() in wiki.name.lower():
+                matching_wikis.append({
+                    "id": wiki.id,
+                    "name": wiki.name,
+                    "url": wiki.url,
+                    "remote_url": wiki.remote_url,
+                })
+        
+        return matching_wikis
+
+    def get_wiki_page_by_title(self, project, wiki_identifier, title):
+        """
+        Find wiki page by title instead of exact path.
+        """
+        pages = self.list_wiki_pages(project, wiki_identifier)
+        
+        for page in pages:
+            # Extract title from path (last part after /)
+            page_title = page["path"].split("/")[-1].replace("-", " ").replace("_", " ")
+            if title.lower() in page_title.lower() or page_title.lower() in title.lower():
+                try:
+                    full_page = self.get_wiki_page(project, wiki_identifier, page["path"])
+                    return full_page
+                except Exception:
+                    continue
+        
+        return None
+
+    def list_all_wikis_in_organization(self):
+        """
+        List all wikis across all projects in the organization.
+        """
+        projects = self.get_projects()
+        all_wikis = []
+        
+        for project in projects:
+            try:
+                wikis = self.get_wikis(project.name)
+                for wiki in wikis:
+                    all_wikis.append({
+                        "project": project.name,
+                        "id": wiki.id,
+                        "name": wiki.name,
+                        "url": wiki.url,
+                        "remote_url": wiki.remote_url,
+                    })
+            except Exception:
+                # Skip projects where we can't access wikis
+                continue
+        
+        return all_wikis
+
+    def get_recent_wiki_pages(self, project, wiki_identifier, limit=10):
+        """
+        Get recently modified wiki pages.
+        """
+        pages = self.list_wiki_pages(project, wiki_identifier)
+        
+        # Sort by view stats if available (proxy for recent activity)
+        pages_with_activity = []
+        for page in pages:
+            if page.get("view_stats"):
+                latest_activity = max(page["view_stats"], key=lambda x: x["date"]) if page["view_stats"] else None
+                pages_with_activity.append({
+                    **page,
+                    "latest_activity": latest_activity
+                })
+            else:
+                pages_with_activity.append({
+                    **page,
+                    "latest_activity": None
+                })
+        
+        # Sort by latest activity date
+        pages_with_activity.sort(
+            key=lambda x: x["latest_activity"]["date"] if x["latest_activity"] else "1900-01-01",
+            reverse=True
+        )
+        
+        return pages_with_activity[:limit]
+
+    def get_wiki_page_suggestions(self, project, wiki_identifier, partial_input):
+        """
+        Get page suggestions based on partial input.
+        """
+        pages = self.list_wiki_pages(project, wiki_identifier)
+        suggestions = []
+        
+        for page in pages:
+            path_lower = page["path"].lower()
+            input_lower = partial_input.lower()
+            
+            # Score based on how well the input matches
+            score = 0
+            if path_lower.startswith(input_lower):
+                score = 100  # Exact prefix match
+            elif input_lower in path_lower:
+                score = 50   # Contains match
+            elif any(part.startswith(input_lower) for part in path_lower.split("/")):
+                score = 25   # Part starts with input
+            
+            if score > 0:
+                suggestions.append({
+                    **page,
+                    "match_score": score
+                })
+        
+        # Sort by score and return top suggestions
+        suggestions.sort(key=lambda x: x["match_score"], reverse=True)
+        return suggestions[:10]
+
+    def create_wiki_pages_batch(self, project, wiki_identifier, pages_data):
+        """
+        Create multiple wiki pages at once.
+        pages_data: list of {"path": str, "content": str}
+        """
+        results = []
+        for page_data in pages_data:
+            try:
+                result = self.create_wiki_page(
+                    project=project,
+                    wiki_identifier=wiki_identifier,
+                    path=page_data["path"],
+                    content=page_data["content"]
+                )
+                results.append({
+                    "path": page_data["path"],
+                    "status": "success",
+                    "result": result
+                })
+            except Exception as e:
+                results.append({
+                    "path": page_data["path"],
+                    "status": "error",
+                    "error": str(e)
+                })
+        
+        return results
 
     def delete_wiki_page(self, project, wiki_identifier, path):
         return self.wiki_client.delete_page(

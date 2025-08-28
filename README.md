@@ -32,6 +32,18 @@ The MCP server will expose a set of tools to interact with Azure DevOps, categor
 -   `get_wikis`
 -   `create_wiki`
 
+#### Enhanced Wiki Helper Methods
+-   `update_wiki_page_safe`: Safely updates a wiki page with automatic retry on version conflicts
+-   `create_or_update_wiki_page_smart`: Creates a new wiki page or updates existing one intelligently
+-   `search_wiki_pages`: Search for wiki pages by title or content
+-   `get_wiki_page_tree`: Get hierarchical structure of wiki pages
+-   `find_wiki_by_name`: Find wikis by partial name match
+-   `get_wiki_page_by_title`: Find wiki page by title instead of exact path
+-   `list_all_wikis_in_organization`: List all wikis across all projects in the organization
+-   `get_recent_wiki_pages`: Get recently modified wiki pages
+-   `get_wiki_page_suggestions`: Get page suggestions based on partial input
+-   `create_wiki_pages_batch`: Create multiple wiki pages at once
+
 #### Repository Management (Read-only)
 -   `list_repositories`
 -   `list_files` (in a repository)
@@ -137,6 +149,16 @@ This guide will walk you through setting up the `mcp-azure-devops` server.
 
 3.  **Restart Cline:**
     Restart your Cline application to load the new MCP server.
+
+## Wiki Helper Methods
+
+The server includes enhanced wiki helper methods that solve common issues with wiki management:
+
+- **Update Failures**: Safe update methods with automatic retry on version conflicts
+- **Navigation Difficulties**: Search and discovery methods to find wikis and pages easily
+- **Limited Helper Methods**: Comprehensive set of helper methods for better user experience
+
+For detailed usage instructions and examples, see the [Wiki Helper Methods Guide](WIKI_HELPER_GUIDE.md).
 
 ## Acknowledgements
 

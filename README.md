@@ -107,6 +107,13 @@ This guide will walk you through setting up the `mcp-azure-devops` server.
     pip install -e .
     ```
 
+4.  **Validate Your Setup:**
+    Run the validation script to ensure everything is configured correctly:
+    ```bash
+    python validate_setup.py
+    ```
+    This script will check your Python version, dependencies, environment variables, and Azure DevOps connectivity.
+
 ### Configuration
 
 1.  **Generate an Azure DevOps Personal Access Token (PAT):**
@@ -149,6 +156,52 @@ This guide will walk you through setting up the `mcp-azure-devops` server.
 
 3.  **Restart Cline:**
     Restart your Cline application to load the new MCP server.
+
+## Troubleshooting
+
+If you encounter issues with the MCP server, follow these steps:
+
+### Quick Diagnosis
+1. **Run the validation script:**
+   ```bash
+   python validate_setup.py
+   ```
+   This will identify common configuration and setup issues.
+
+2. **Check server logs:**
+   ```bash
+   python -m mcp_azure_devops.server 2> server.log
+   ```
+   Look for error messages in the log output.
+
+### Common Issues
+
+#### "No tools found" in VS Code
+- **Cause:** MCP protocol communication issues or incorrect configuration
+- **Solution:** Verify your `cline_mcp_settings.json` configuration and restart VS Code
+
+#### Server fails to start
+- **Cause:** Missing dependencies or environment variables
+- **Solution:** Run `python validate_setup.py` to identify specific issues
+
+#### Azure DevOps connection failures
+- **Cause:** Invalid PAT or network issues
+- **Solution:** Verify your Personal Access Token and organization URL
+
+For detailed troubleshooting guidance, see the [Troubleshooting Guide](TROUBLESHOOTING.md).
+
+### Built-in Diagnostics
+
+The server includes a health check tool that you can use to verify everything is working:
+
+```json
+{
+  "tool": "server_health_check",
+  "arguments": {}
+}
+```
+
+This will return comprehensive status information about your server configuration and Azure DevOps connectivity.
 
 ## Wiki Helper Methods
 

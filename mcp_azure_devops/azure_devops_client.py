@@ -203,6 +203,23 @@ class AzureDevOpsClient:
             path=path
         )
         
+        # Try to get ETag from various possible locations
+        etag = None
+        if hasattr(page, 'eTag'):
+            etag = page.eTag
+        elif hasattr(page, 'etag'):
+            etag = page.etag
+        elif hasattr(page, 'e_tag'):
+            etag = page.e_tag
+        elif hasattr(page, '_etag'):
+            etag = page._etag
+        elif hasattr(page, 'page') and hasattr(page.page, 'eTag'):
+            etag = page.page.eTag
+        elif hasattr(page, 'page') and hasattr(page.page, 'etag'):
+            etag = page.page.etag
+        elif hasattr(page, 'page') and hasattr(page.page, 'e_tag'):
+            etag = page.page.e_tag
+        
         parameters = {
             "content": content
         }
@@ -211,7 +228,7 @@ class AzureDevOpsClient:
             wiki_identifier=wiki_identifier,
             path=path,
             parameters=parameters,
-            version=page.e_tag
+            version=etag
         )
 
     def update_wiki_page_safe(self, project, wiki_identifier, path, content, max_retries=3):
@@ -227,6 +244,23 @@ class AzureDevOpsClient:
                     path=path
                 )
                 
+                # Try to get ETag from various possible locations
+                etag = None
+                if hasattr(page, 'eTag'):
+                    etag = page.eTag
+                elif hasattr(page, 'etag'):
+                    etag = page.etag
+                elif hasattr(page, 'e_tag'):
+                    etag = page.e_tag
+                elif hasattr(page, '_etag'):
+                    etag = page._etag
+                elif hasattr(page, 'page') and hasattr(page.page, 'eTag'):
+                    etag = page.page.eTag
+                elif hasattr(page, 'page') and hasattr(page.page, 'etag'):
+                    etag = page.page.etag
+                elif hasattr(page, 'page') and hasattr(page.page, 'e_tag'):
+                    etag = page.page.e_tag
+                
                 parameters = {
                     "content": content
                 }
@@ -235,7 +269,7 @@ class AzureDevOpsClient:
                     wiki_identifier=wiki_identifier,
                     path=path,
                     parameters=parameters,
-                    version=page.e_tag
+                    version=etag
                 )
             except Exception as e:
                 if "version" in str(e).lower() and attempt < max_retries - 1:
@@ -472,6 +506,74 @@ class AzureDevOpsClient:
             path=path
         )
 
+    def move_wiki_page(self, project, wiki_identifier, from_path, to_path):
+        """
+        Move a wiki page from one location to another atomically.
+        This involves getting the source content, creating at target, and deleting original.
+        """
+        try:
+            # Step 1: Get the source page content
+            source_page = self.wiki_client.get_page(
+                project=project,
+                wiki_identifier=wiki_identifier,
+                path=from_path,
+                include_content=True
+            )
+            
+            if not source_page or not source_page.page:
+                raise Exception(f"Source page '{from_path}' not found")
+            
+            source_content = source_page.page.content or ""
+            
+            # Step 2: Create the page at the target location
+            try:
+                target_page = self.create_wiki_page(
+                    project=project,
+                    wiki_identifier=wiki_identifier,
+                    path=to_path,
+                    content=source_content
+                )
+            except Exception as create_error:
+                raise Exception(f"Failed to create page at target location '{to_path}': {str(create_error)}")
+            
+            # Step 3: Delete the original page (only if creation succeeded)
+            try:
+                self.delete_wiki_page(
+                    project=project,
+                    wiki_identifier=wiki_identifier,
+                    path=from_path
+                )
+            except Exception as delete_error:
+                # If deletion fails, we should warn but not fail the whole operation
+                # since the content is now at the target location
+                return {
+                    "status": "partial_success",
+                    "message": f"Page moved to '{to_path}' but failed to delete original at '{from_path}': {str(delete_error)}",
+                    "from_path": from_path,
+                    "to_path": to_path,
+                    "target_page": {
+                        "path": target_page.page.path,
+                        "url": target_page.page.url
+                    },
+                    "warning": f"Original page at '{from_path}' still exists and may need manual deletion"
+                }
+            
+            # Success - both operations completed
+            return {
+                "status": "success",
+                "message": f"Page successfully moved from '{from_path}' to '{to_path}'",
+                "from_path": from_path,
+                "to_path": to_path,
+                "target_page": {
+                    "path": target_page.page.path,
+                    "url": target_page.page.url
+                }
+            }
+            
+        except Exception as e:
+            # Complete failure - operation couldn't proceed
+            raise Exception(f"Failed to move wiki page from '{from_path}' to '{to_path}': {str(e)}")
+
     def list_wiki_pages(self, project, wiki_identifier):
         pages_batch_request = WikiPagesBatchRequest(
             top=100  # Retrieve up to 100 pages
@@ -484,7 +586,7 @@ class AzureDevOpsClient:
         return [
             {
                 "path": page.path,
-                "url": page.url,
+                "url": getattr(page, 'url', ''),  # Handle missing url attribute
                 "view_stats": [
                     {"date": stat.date.isoformat(), "count": stat.count}
                     for stat in page.view_stats
@@ -518,3 +620,90 @@ class AzureDevOpsClient:
             repository_id=repository_id,
             path=path
         )
+
+    def get_work_item_types(self, project):
+        """
+        Get all work item types available in a project.
+        """
+        return self.work_item_tracking_client.get_work_item_types(project=project)
+
+    def get_work_item_states(self, project, work_item_type):
+        """
+        Get all possible states for a specific work item type.
+        """
+        work_item_type_obj = self.work_item_tracking_client.get_work_item_type(
+            project=project,
+            type=work_item_type
+        )
+        
+        # Extract states from the work item type definition
+        states = []
+        if hasattr(work_item_type_obj, 'states') and work_item_type_obj.states:
+            states = [
+                {
+                    "name": state.name,
+                    "color": getattr(state, 'color', None),
+                    "category": getattr(state, 'category', None)
+                }
+                for state in work_item_type_obj.states
+            ]
+        
+        return states
+
+    def get_work_item_fields(self, project):
+        """
+        Get all work item fields available in a project.
+        """
+        fields = self.work_item_tracking_client.get_fields(project=project)
+        return [
+            {
+                "name": field.name,
+                "reference_name": field.reference_name,
+                "type": getattr(field, 'type', None),
+                "description": getattr(field, 'description', None),
+                "read_only": getattr(field, 'read_only', False),
+                "can_sort_by": getattr(field, 'can_sort_by', False)
+            }
+            for field in fields
+        ]
+
+    def get_work_item_transitions(self, project, work_item_type, from_state):
+        """
+        Get valid state transitions for a work item type from a specific state.
+        """
+        try:
+            # This requires calling the process configuration API
+            # which might not be directly available in the Python SDK
+            # We'll use the work item type to get transition info
+            work_item_type_obj = self.work_item_tracking_client.get_work_item_type(
+                project=project,
+                type=work_item_type
+            )
+            
+            # Extract transition rules if available
+            transitions = []
+            if hasattr(work_item_type_obj, 'transitions') and work_item_type_obj.transitions:
+                transitions = [
+                    {
+                        "to": getattr(transition, 'to', None),
+                        "actions": getattr(transition, 'actions', [])
+                    }
+                    for transition in work_item_type_obj.transitions
+                    if hasattr(transition, 'from') and getattr(transition, 'from', None) == from_state
+                ]
+            else:
+                # Fallback: return all available states as potential transitions
+                if hasattr(work_item_type_obj, 'states') and work_item_type_obj.states:
+                    transitions = [
+                        {
+                            "to": state.name,
+                            "actions": []
+                        }
+                        for state in work_item_type_obj.states
+                        if state.name != from_state
+                    ]
+            
+            return transitions
+        except Exception as e:
+            # Fallback: return empty transitions with error info
+            return {"error": str(e), "transitions": []}

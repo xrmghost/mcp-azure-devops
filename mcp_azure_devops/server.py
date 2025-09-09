@@ -192,6 +192,79 @@ class MCPAzureDevOpsServer:
                     "additionalProperties": False
                 }
             ),
+            # Work Item Metadata Discovery Tools
+            types.Tool(
+                name="get_work_item_types",
+                description="Get all work item types available in a project to help with smart work item management.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project": {
+                            "type": "string", 
+                            "description": "The name or ID of the project."
+                        },
+                    },
+                    "required": ["project"],
+                    "additionalProperties": False
+                }
+            ),
+            types.Tool(
+                name="get_work_item_states",
+                description="Get all possible states for a specific work item type to help with accurate status updates.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project": {
+                            "type": "string", 
+                            "description": "The name or ID of the project."
+                        },
+                        "work_item_type": {
+                            "type": "string", 
+                            "description": "The work item type to get states for (e.g., 'Bug', 'User Story', 'Task')."
+                        },
+                    },
+                    "required": ["project", "work_item_type"],
+                    "additionalProperties": False
+                }
+            ),
+            types.Tool(
+                name="get_work_item_fields",
+                description="Get all work item fields available in a project with metadata for smart field updates.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project": {
+                            "type": "string", 
+                            "description": "The name or ID of the project."
+                        },
+                    },
+                    "required": ["project"],
+                    "additionalProperties": False
+                }
+            ),
+            types.Tool(
+                name="get_work_item_transitions",
+                description="Get valid state transitions for a work item type from a specific state to ensure proper workflow.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project": {
+                            "type": "string", 
+                            "description": "The name or ID of the project."
+                        },
+                        "work_item_type": {
+                            "type": "string", 
+                            "description": "The work item type (e.g., 'Bug', 'User Story', 'Task')."
+                        },
+                        "from_state": {
+                            "type": "string", 
+                            "description": "The current state to get valid transitions from."
+                        },
+                    },
+                    "required": ["project", "work_item_type", "from_state"],
+                    "additionalProperties": False
+                }
+            ),
             types.Tool(
                 name="create_wiki_page",
                 description="Creates a new wiki page with specified content.",
@@ -554,6 +627,187 @@ class MCPAzureDevOpsServer:
                     "additionalProperties": False
                 }
             ),
+            # Additional Wiki Navigation Helper Tools
+            types.Tool(
+                name="get_wiki_page_tree",
+                description="Get hierarchical structure of wiki pages for better navigation.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project": {
+                            "type": "string", 
+                            "description": "The name or ID of the project."
+                        },
+                        "wiki_identifier": {
+                            "type": "string", 
+                            "description": "The name or ID of the wiki."
+                        },
+                    },
+                    "required": ["project", "wiki_identifier"],
+                    "additionalProperties": False
+                }
+            ),
+            types.Tool(
+                name="find_wiki_by_name",
+                description="Find wikis by partial name match when you don't know the exact wiki name.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project": {
+                            "type": "string", 
+                            "description": "The name or ID of the project."
+                        },
+                        "partial_name": {
+                            "type": "string", 
+                            "description": "Partial wiki name to search for."
+                        },
+                    },
+                    "required": ["project", "partial_name"],
+                    "additionalProperties": False
+                }
+            ),
+            types.Tool(
+                name="get_wiki_page_by_title",
+                description="Find a wiki page by title instead of exact path - useful for navigation.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project": {
+                            "type": "string", 
+                            "description": "The name or ID of the project."
+                        },
+                        "wiki_identifier": {
+                            "type": "string", 
+                            "description": "The name or ID of the wiki."
+                        },
+                        "title": {
+                            "type": "string", 
+                            "description": "Title or partial title of the page to find."
+                        },
+                    },
+                    "required": ["project", "wiki_identifier", "title"],
+                    "additionalProperties": False
+                }
+            ),
+            types.Tool(
+                name="list_all_wikis_in_organization",
+                description="List all wikis across all projects in the organization for cross-project discovery.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": False
+                }
+            ),
+            types.Tool(
+                name="get_recent_wiki_pages",
+                description="Get recently modified wiki pages based on activity.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project": {
+                            "type": "string", 
+                            "description": "The name or ID of the project."
+                        },
+                        "wiki_identifier": {
+                            "type": "string", 
+                            "description": "The name or ID of the wiki."
+                        },
+                        "limit": {
+                            "type": "integer", 
+                            "description": "Maximum number of pages to return (default: 10)."
+                        },
+                    },
+                    "required": ["project", "wiki_identifier"],
+                    "additionalProperties": False
+                }
+            ),
+            types.Tool(
+                name="get_wiki_page_suggestions",
+                description="Get page suggestions based on partial input - useful for autocomplete-like functionality.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project": {
+                            "type": "string", 
+                            "description": "The name or ID of the project."
+                        },
+                        "wiki_identifier": {
+                            "type": "string", 
+                            "description": "The name or ID of the wiki."
+                        },
+                        "partial_input": {
+                            "type": "string", 
+                            "description": "Partial page path or title to get suggestions for."
+                        },
+                    },
+                    "required": ["project", "wiki_identifier", "partial_input"],
+                    "additionalProperties": False
+                }
+            ),
+            types.Tool(
+                name="create_wiki_pages_batch",
+                description="Create multiple wiki pages at once for bulk operations.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project": {
+                            "type": "string", 
+                            "description": "The name or ID of the project."
+                        },
+                        "wiki_identifier": {
+                            "type": "string", 
+                            "description": "The name or ID of the wiki."
+                        },
+                        "pages_data": {
+                            "type": "array",
+                            "description": "Array of page objects to create.",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "path": {
+                                        "type": "string",
+                                        "description": "The path of the wiki page to create."
+                                    },
+                                    "content": {
+                                        "type": "string",
+                                        "description": "The content of the wiki page."
+                                    }
+                                },
+                                "required": ["path", "content"]
+                            }
+                        },
+                    },
+                    "required": ["project", "wiki_identifier", "pages_data"],
+                    "additionalProperties": False
+                }
+            ),
+            types.Tool(
+                name="move_wiki_page",
+                description="Move a wiki page from one location to another atomically. Perfect for reorganizing wiki structure.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project": {
+                            "type": "string", 
+                            "description": "The name or ID of the project."
+                        },
+                        "wiki_identifier": {
+                            "type": "string", 
+                            "description": "The name or ID of the wiki."
+                        },
+                        "from_path": {
+                            "type": "string", 
+                            "description": "The current path of the wiki page to move."
+                        },
+                        "to_path": {
+                            "type": "string", 
+                            "description": "The target path where the wiki page should be moved."
+                        },
+                    },
+                    "required": ["project", "wiki_identifier", "from_path", "to_path"],
+                    "additionalProperties": False
+                }
+            ),
         ]
         
         logger.info(f"Defined {len(self.tools)} tools")
@@ -634,6 +888,26 @@ class MCPAzureDevOpsServer:
         elif name == "search_work_items":
             return self.client.search_work_items(**arguments)
         
+        # Work Item Metadata Discovery
+        elif name == "get_work_item_types":
+            work_item_types = self.client.get_work_item_types(**arguments)
+            return [
+                {
+                    "name": wit.name,
+                    "reference_name": wit.reference_name,
+                    "description": getattr(wit, 'description', None),
+                    "color": getattr(wit, 'color', None),
+                    "icon": getattr(wit, 'icon', None)
+                }
+                for wit in work_item_types
+            ]
+        elif name == "get_work_item_states":
+            return self.client.get_work_item_states(**arguments)
+        elif name == "get_work_item_fields":
+            return self.client.get_work_item_fields(**arguments)
+        elif name == "get_work_item_transitions":
+            return self.client.get_work_item_transitions(**arguments)
+        
         # Wiki Management
         elif name == "create_wiki_page":
             page = self.client.create_wiki_page(**arguments)
@@ -657,11 +931,10 @@ class MCPAzureDevOpsServer:
                 "content": page.page.content,
             }
         elif name == "delete_wiki_page":
-            deleted_page = self.client.delete_wiki_page(**arguments)
+            self.client.delete_wiki_page(**arguments)
             return {
                 "message": f"Wiki page '{arguments['path']}' deleted successfully.",
-                "path": deleted_page.path,
-                "url": deleted_page.url,
+                "path": arguments['path']
             }
         elif name == "list_wiki_pages":
             return self.client.list_wiki_pages(**arguments)
@@ -704,6 +977,32 @@ class MCPAzureDevOpsServer:
             }
         elif name == "search_wiki_pages":
             return self.client.search_wiki_pages(**arguments)
+        
+        # Additional Wiki Navigation Helper Methods
+        elif name == "get_wiki_page_tree":
+            return self.client.get_wiki_page_tree(**arguments)
+        elif name == "find_wiki_by_name":
+            return self.client.find_wiki_by_name(**arguments)
+        elif name == "get_wiki_page_by_title":
+            page = self.client.get_wiki_page_by_title(**arguments)
+            if page:
+                return {
+                    "path": page.page.path,
+                    "url": page.page.url,
+                    "content": page.page.content,
+                }
+            else:
+                return {"message": f"No page found with title '{arguments['title']}'"}
+        elif name == "list_all_wikis_in_organization":
+            return self.client.list_all_wikis_in_organization()
+        elif name == "get_recent_wiki_pages":
+            return self.client.get_recent_wiki_pages(**arguments)
+        elif name == "get_wiki_page_suggestions":
+            return self.client.get_wiki_page_suggestions(**arguments)
+        elif name == "create_wiki_pages_batch":
+            return self.client.create_wiki_pages_batch(**arguments)
+        elif name == "move_wiki_page":
+            return self.client.move_wiki_page(**arguments)
         
         # Repository Management
         elif name == "list_repositories":

@@ -176,6 +176,71 @@ class AzureDevOpsClient:
         else:
             return []
 
+    def get_work_item_comments(self, work_item_id, project=None, top=None, continuation_token=None, include_deleted=False, expand=None, order=None):
+        """
+        Get comments for a specific work item.
+        
+        Args:
+            work_item_id (int): The ID of the work item to get comments for
+            project (str, optional): Project name or ID. If not provided, uses project_context
+            top (int, optional): Maximum number of comments to return (pagination)
+            continuation_token (str, optional): Token for getting next page of results
+            include_deleted (bool): Whether to include deleted comments (default: False)
+            expand (str, optional): Additional data retrieval options for work item comments
+            order (str, optional): Order in which comments should be returned
+            
+        Returns:
+            dict: Contains comments list and pagination info
+        """
+        # Use provided project or fallback to context
+        project_name = project or self.project_context
+        if not project_name:
+            raise ValueError("Project must be specified either as parameter or set in project context")
+        
+        # Get comments from Azure DevOps API
+        comment_list = self.work_item_tracking_client.get_comments(
+            project=project_name,
+            work_item_id=work_item_id,
+            top=top,
+            continuation_token=continuation_token,
+            include_deleted=include_deleted,
+            expand=expand,
+            order=order
+        )
+        
+        # Format the response
+        result = {
+            "total_count": comment_list.total_count if hasattr(comment_list, 'total_count') else None,
+            "continuation_token": comment_list.continuation_token if hasattr(comment_list, 'continuation_token') else None,
+            "comments": []
+        }
+        
+        if comment_list.comments:
+            for comment in comment_list.comments:
+                formatted_comment = {
+                    "id": comment.id,
+                    "text": comment.text,
+                    "created_by": {
+                        "id": comment.created_by.id if comment.created_by else None,
+                        "display_name": comment.created_by.display_name if comment.created_by else None,
+                        "unique_name": comment.created_by.unique_name if comment.created_by else None,
+                        "image_url": comment.created_by.image_url if comment.created_by else None
+                    } if comment.created_by else None,
+                    "created_date": comment.created_date.isoformat() if comment.created_date else None,
+                    "modified_by": {
+                        "id": comment.modified_by.id if comment.modified_by else None,
+                        "display_name": comment.modified_by.display_name if comment.modified_by else None,
+                        "unique_name": comment.modified_by.unique_name if comment.modified_by else None,
+                        "image_url": comment.modified_by.image_url if comment.modified_by else None
+                    } if comment.modified_by else None,
+                    "modified_date": comment.modified_date.isoformat() if comment.modified_date else None,
+                    "url": comment.url if hasattr(comment, 'url') else None,
+                    "version": comment.version if hasattr(comment, 'version') else None
+                }
+                result["comments"].append(formatted_comment)
+        
+        return result
+
     def create_wiki_page(self, project, wiki_identifier, path, content):
         parameters = {
             "content": content

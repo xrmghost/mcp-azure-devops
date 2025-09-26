@@ -192,6 +192,45 @@ class MCPAzureDevOpsServer:
                     "additionalProperties": False
                 }
             ),
+            types.Tool(
+                name="get_work_item_comments",
+                description="Gets comments for a specific work item with pagination support.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "work_item_id": {
+                            "type": "integer", 
+                            "description": "The ID of the work item to get comments for."
+                        },
+                        "project": {
+                            "type": "string", 
+                            "description": "The name or ID of the project (optional if project context is set)."
+                        },
+                        "top": {
+                            "type": "integer", 
+                            "description": "Maximum number of comments to return (for pagination)."
+                        },
+                        "continuation_token": {
+                            "type": "string", 
+                            "description": "Token for getting the next page of results."
+                        },
+                        "include_deleted": {
+                            "type": "boolean", 
+                            "description": "Whether to include deleted comments (default: false)."
+                        },
+                        "expand": {
+                            "type": "string", 
+                            "description": "Additional data retrieval options for work item comments."
+                        },
+                        "order": {
+                            "type": "string", 
+                            "description": "Order in which comments should be returned (e.g., 'created_date_asc', 'created_date_desc')."
+                        }
+                    },
+                    "required": ["work_item_id"],
+                    "additionalProperties": False
+                }
+            ),
             # Work Item Metadata Discovery Tools
             types.Tool(
                 name="get_work_item_types",
@@ -887,6 +926,8 @@ class MCPAzureDevOpsServer:
             }
         elif name == "search_work_items":
             return self.client.search_work_items(**arguments)
+        elif name == "get_work_item_comments":
+            return self.client.get_work_item_comments(**arguments)
         
         # Work Item Metadata Discovery
         elif name == "get_work_item_types":

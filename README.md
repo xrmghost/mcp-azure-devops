@@ -22,6 +22,7 @@ The MCP server will expose a set of tools to interact with Azure DevOps, categor
 -   `update_work_item` (by ID, supports work item linking)
 -   `delete_work_item` (by ID)
 -   `search_work_items` (using WIQL - Work Item Query Language)
+-   `get_work_item_comments` (retrieve comments for a work item with pagination support)
 
 #### Wiki Management (CRUD)
 -   `create_wiki_page`

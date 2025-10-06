@@ -35,12 +35,22 @@
   - `get_work_item_transitions` - Get valid state transitions from current state
 - ✅ LLMs can now discover proper statuses and make informed decisions instead of guessing
 
+### ✅ NEW FEATURE: Work Item Comments Retrieval
+**Problem**: The MCP server supported creating comments on work items, but had no tool to read or list existing comments. Users could not retrieve comment history or view discussions on work items.
+
+**Solutions Implemented**:
+- ✅ Added `get_work_item_comments` - Retrieve comments for a specific work item with full pagination support
+- ✅ Returns complete comment metadata: id, text, created_by, created_date, modified_date, etc.
+- ✅ Supports all Azure DevOps API parameters: pagination (top/continuation_token), include_deleted, expand, order
+- ✅ Provides full parity with Work Item Comment management alongside existing comment creation capabilities
+
 ## Impact Summary
 
 ### Quantitative Improvements
-- **Total MCP Tools**: Increased from ~24 to **36 tools** (+50% expansion)
+- **Total MCP Tools**: Increased from ~24 to **37 tools** (+54% expansion)
 - **Wiki Navigation**: Added 7 missing navigation tools + 1 new move tool
 - **Work Item Intelligence**: Added 4 metadata discovery tools
+- **Work Item Comments**: Added 1 new comment retrieval tool
 - **Bug Fixes**: 1 critical ETag bug resolved
 - **Debug Cleanup**: Removed 4 debug files
 
@@ -49,6 +59,7 @@
 - **Update Reliability**: Wiki updates now work consistently with proper ETag handling
 - **Navigation Experience**: Rich hierarchical navigation and smart search capabilities
 - **Status Intelligence**: Work item updates now use organization-specific states and fields
+- **Comment Management**: Full parity in Work Item Comment management (create and retrieve)
 - **Error Handling**: Improved retry mechanisms and comprehensive error messages
 - **Code Quality**: Clean codebase with no debug artifacts
 

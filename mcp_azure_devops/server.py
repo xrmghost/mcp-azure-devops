@@ -865,6 +865,68 @@ class MCPAzureDevOpsServer:
                     "additionalProperties": False
                 }
             ),
+            # Iteration Management Tools
+            types.Tool(
+                name="list_iterations",
+                description="Lists all iterations in a project with their dates and time frame status (past/current/future). Use this to discover available sprints and their schedules.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project": {
+                            "type": "string", 
+                            "description": "The name or ID of the project (optional if project context is set)."
+                        },
+                        "team": {
+                            "type": "string", 
+                            "description": "Team name (optional, defaults to project's default team)."
+                        },
+                    },
+                    "required": [],
+                    "additionalProperties": False
+                }
+            ),
+            types.Tool(
+                name="get_current_iteration",
+                description="Returns the currently active iteration based on today's date. Use this to identify which sprint is currently in progress.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project": {
+                            "type": "string", 
+                            "description": "The name or ID of the project (optional if project context is set)."
+                        },
+                        "team": {
+                            "type": "string", 
+                            "description": "Team name (optional, defaults to project's default team)."
+                        },
+                    },
+                    "required": [],
+                    "additionalProperties": False
+                }
+            ),
+            types.Tool(
+                name="list_iteration_work_items",
+                description="Lists all work items assigned to a specific iteration. Returns work items regardless of state (Active, Closed, Removed, etc.).",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "iteration_path": {
+                            "type": "string", 
+                            "description": "Full iteration path (e.g., 'ProjectName\\Sprint 1'). Use list_iterations to discover valid paths."
+                        },
+                        "project": {
+                            "type": "string", 
+                            "description": "The name or ID of the project (optional if project context is set)."
+                        },
+                        "team": {
+                            "type": "string", 
+                            "description": "Team name (optional, defaults to project's default team)."
+                        },
+                    },
+                    "required": ["iteration_path"],
+                    "additionalProperties": False
+                }
+            ),
         ]
         
         logger.info(f"Defined {len(self.tools)} tools")
@@ -1079,6 +1141,14 @@ class MCPAzureDevOpsServer:
         elif name == "get_projects":
             projects = self.client.get_projects()
             return {"projects": [p.name for p in projects]}
+        
+        # Iteration Management
+        elif name == "list_iterations":
+            return self.client.list_iterations(**arguments)
+        elif name == "get_current_iteration":
+            return self.client.get_current_iteration(**arguments)
+        elif name == "list_iteration_work_items":
+            return self.client.list_iteration_work_items(**arguments)
         
         else:
             logger.warning(f"Unknown tool: {name}")

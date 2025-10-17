@@ -63,6 +63,12 @@ class AzureDevOpsClient:
             self._graph_client = self.connection.clients.get_graph_client()
         return self._graph_client
 
+    @property
+    def work_client(self):
+        if not hasattr(self, '_work_client') or self._work_client is None:
+            self._work_client = self.connection.clients.get_work_client()
+        return self._work_client
+
     def list_users(self):
         return self.graph_client.list_users()
 
@@ -855,3 +861,133 @@ class AzureDevOpsClient:
         except Exception as e:
             # Fallback: return empty transitions with error info
             return {"error": str(e), "transitions": []}
+
+    def list_iterations(self, project=None, team=None):
+        """
+        List all iterations in a project with their dates and time frame status.
+        
+        Args:
+            project (str, optional): Project name or ID. If not provided, uses project_context
+            team (str, optional): Team name. If not provided, uses project's default team
+            
+        Returns:
+            list: List of iterations with id, name, path, start_date, finish_date, time_frame, url
+        """
+        # Use provided project or fallback to context
+        project_name = project or self.project_context
+        if not project_name:
+            raise ValueError(
+                "Project must be specified either as parameter or set via set_project_context tool. "
+                "Use set_project_context to set the project context for subsequent commands."
+            )
+        
+        # Get team context - if team not provided, get project's default team
+        if not team:
+            # Get the project to find its default team
+            project_obj = self.core_client.get_project(project_name)
+            # Use the default team name from the project
+            team = project_obj.default_team.name if hasattr(project_obj, 'default_team') and project_obj.default_team else project_name
+        
+        # Create team context object for the API call
+        from azure.devops.v7_1.work.models import TeamContext
+        team_context = TeamContext(project=project_name, team=team)
+        
+        # Get iterations from work client
+        iterations = self.work_client.get_team_iterations(team_context=team_context)
+        
+        # Format the response
+        result = []
+        for iteration in iterations:
+            iteration_data = {
+                "id": iteration.id if hasattr(iteration, 'id') else None,
+                "name": iteration.name if hasattr(iteration, 'name') else None,
+                "path": iteration.path if hasattr(iteration, 'path') else None,
+                "start_date": iteration.attributes.start_date.isoformat() if hasattr(iteration, 'attributes') and iteration.attributes and hasattr(iteration.attributes, 'start_date') and iteration.attributes.start_date else None,
+                "finish_date": iteration.attributes.finish_date.isoformat() if hasattr(iteration, 'attributes') and iteration.attributes and hasattr(iteration.attributes, 'finish_date') and iteration.attributes.finish_date else None,
+                "time_frame": iteration.attributes.time_frame if hasattr(iteration, 'attributes') and iteration.attributes and hasattr(iteration.attributes, 'time_frame') else None,
+                "url": iteration.url if hasattr(iteration, 'url') else None
+            }
+            result.append(iteration_data)
+        
+        # Sort by start_date ascending
+        result.sort(key=lambda x: x['start_date'] if x['start_date'] else '1900-01-01')
+        
+        return result
+
+    def get_current_iteration(self, project=None, team=None):
+        """
+        Get the currently active iteration based on today's date.
+        
+        Args:
+            project (str, optional): Project name or ID. If not provided, uses project_context
+            team (str, optional): Team name. If not provided, uses project's default team
+            
+        Returns:
+            dict: Current iteration with id, name, path, start_date, finish_date, time_frame, url
+        """
+        # Get all iterations
+        iterations = self.list_iterations(project=project, team=team)
+        
+        # Find the current iteration (time_frame == "current")
+        current_iterations = [it for it in iterations if it.get('time_frame') == 'current']
+        
+        if not current_iterations:
+            raise ValueError("No current iteration found. The project may not have an active iteration.")
+        
+        # Return the first current iteration (should only be one)
+        return current_iterations[0]
+
+    def list_iteration_work_items(self, iteration_path, project=None, team=None):
+        """
+        List all work items assigned to a specific iteration.
+        
+        Args:
+            iteration_path (str): Full iteration path (e.g., "ProjectName\\Sprint 1")
+            project (str, optional): Project name or ID. If not provided, uses project_context
+            team (str, optional): Team name. If not provided, uses project's default team
+            
+        Returns:
+            list: List of work items with id, title, work_item_type, state, assigned_to, iteration_path, url
+        """
+        # Use provided project or fallback to context
+        project_name = project or self.project_context
+        if not project_name:
+            raise ValueError(
+                "Project must be specified either as parameter or set via set_project_context tool. "
+                "Use set_project_context to set the project context for subsequent commands."
+            )
+        
+        # Build WIQL query to get all work items in the iteration
+        wiql_query = f"""
+        SELECT [System.Id]
+        FROM WorkItems
+        WHERE [System.TeamProject] = '{project_name}'
+        AND [System.IterationPath] = '{iteration_path}'
+        ORDER BY [System.Id]
+        """
+        
+        wiql = Wiql(query=wiql_query)
+        query_result = self.work_item_tracking_client.query_by_wiql(wiql)
+        
+        if not query_result.work_items:
+            return []
+        
+        # Get full work item details
+        work_item_ids = [item.id for item in query_result.work_items]
+        work_items = self.work_item_tracking_client.get_work_items(ids=work_item_ids)
+        
+        # Format the response
+        result = []
+        for wi in work_items:
+            work_item_data = {
+                "id": wi.id,
+                "title": wi.fields.get("System.Title"),
+                "work_item_type": wi.fields.get("System.WorkItemType"),
+                "state": wi.fields.get("System.State"),
+                "assigned_to": wi.fields.get("System.AssignedTo", {}).get("displayName") if isinstance(wi.fields.get("System.AssignedTo"), dict) else wi.fields.get("System.AssignedTo"),
+                "iteration_path": wi.fields.get("System.IterationPath"),
+                "url": wi.url
+            }
+            result.append(work_item_data)
+        
+        return result

@@ -79,6 +79,10 @@ class MCPAzureDevOpsServer:
                             "type": "string", 
                             "description": "The description of the work item."
                         },
+                        "custom_fields": {
+                            "type": "object",
+                            "description": "A dictionary of custom fields to set on the work item."
+                        },
                         "relations": {
                             "type": "array",
                             "description": "A list of relations to other work items.",

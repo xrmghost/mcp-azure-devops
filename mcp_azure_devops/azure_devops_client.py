@@ -68,7 +68,7 @@ class AzureDevOpsClient:
     def get_projects(self):
         return self.core_client.get_projects()
 
-    def create_work_item(self, project, work_item_type, title, description, relations=None):
+    def create_work_item(self, project, work_item_type, title, description, custom_fields=None, relations=None):
         patch_document = [
             JsonPatchOperation(
                 op="add",
@@ -81,6 +81,16 @@ class AzureDevOpsClient:
                 value=description
             )
         ]
+
+        if custom_fields:
+            for field, value in custom_fields.items():
+                patch_document.append(
+                    JsonPatchOperation(
+                        op="add",
+                        path=f"/fields/{field}",
+                        value=value
+                    )
+                )
 
         if relations:
             for relation in relations:

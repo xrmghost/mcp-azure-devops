@@ -184,6 +184,43 @@ class AzureDevOpsClient:
                     "attributes": r.attributes
                 } for r in work_item.relations
             ]
+        
+        # If expand includes "All", fetch and include history
+        if expand and "All" in expand:
+            try:
+                updates = self.work_item_tracking_client.get_updates(id=work_item_id)
+                
+                # Handle multiple failure scenarios - check if updates is iterable
+                if updates is not None and hasattr(updates, '__iter__') and not isinstance(updates, str):
+                    try:
+                        result["history"] = [
+                            {
+                                "id": update.id,
+                                "rev": update.rev,
+                                "revised_by": {
+                                    "id": update.revised_by.id if update.revised_by else None,
+                                    "display_name": update.revised_by.display_name if update.revised_by else None,
+                                    "unique_name": update.revised_by.unique_name if update.revised_by else None
+                                } if update.revised_by else None,
+                                "revised_date": update.revised_date.isoformat() if update.revised_date else None,
+                                "fields": update.fields if hasattr(update, 'fields') else {},
+                                "relations": {
+                                    "added": [{"rel": r.rel, "url": r.url} for r in update.relations.added] if hasattr(update, 'relations') and update.relations and hasattr(update.relations, 'added') else [],
+                                    "removed": [{"rel": r.rel, "url": r.url} for r in update.relations.removed] if hasattr(update, 'relations') and update.relations and hasattr(update.relations, 'removed') else [],
+                                    "updated": [{"rel": r.rel, "url": r.url} for r in update.relations.updated] if hasattr(update, 'relations') and update.relations and hasattr(update.relations, 'updated') else []
+                                } if hasattr(update, 'relations') else None
+                            }
+                            for update in updates
+                        ]
+                    except TypeError:
+                        # Fallback if iteration still fails
+                        result["history"] = []
+                else:
+                    result["history"] = []
+            except Exception as e:
+                # Log but don't fail the entire request
+                result["history_error"] = f"Failed to retrieve history: {str(e)}"
+        
         return result
 
     def update_work_item(self, work_item_id, updates, relations=None, markdown_fields=None):
@@ -327,6 +364,112 @@ class AzureDevOpsClient:
                     "version": comment.version if hasattr(comment, 'version') else None
                 }
                 result["comments"].append(formatted_comment)
+        
+        return result
+
+    def add_work_item_comment(self, work_item_id, comment_text, project=None):
+        """
+        Add a comment to a work item.
+        
+        Args:
+            work_item_id (int): The ID of the work item
+            comment_text (str): The comment text to add
+            project (str, optional): Project name or ID. Uses project_context if not provided
+            
+        Returns:
+            dict: Created comment with id, text, created_by, created_date
+        """
+        from azure.devops.v7_1.work_item_tracking.models import CommentCreate
+        
+        # Use provided project or fallback to context
+        project_name = project or self.project_context
+        if not project_name:
+            raise ValueError(
+                "Project must be specified either as parameter or set via set_project_context tool. "
+                "Use set_project_context to set the project context for subsequent commands."
+            )
+        
+        # Create comment request
+        comment_request = CommentCreate(text=comment_text)
+        
+        # Add comment via API
+        comment = self.work_item_tracking_client.add_comment(
+            project=project_name,
+            work_item_id=work_item_id,
+            request=comment_request
+        )
+        
+        # Format response
+        return {
+            "id": comment.id,
+            "work_item_id": work_item_id,
+            "text": comment.text,
+            "created_by": {
+                "id": comment.created_by.id if comment.created_by else None,
+                "display_name": comment.created_by.display_name if comment.created_by else None,
+                "unique_name": comment.created_by.unique_name if comment.created_by else None
+            } if comment.created_by else None,
+            "created_date": comment.created_date.isoformat() if comment.created_date else None,
+            "url": comment.url if hasattr(comment, 'url') else None
+        }
+
+    def get_work_item_history(self, work_item_id, project=None, top=None, skip=None):
+        """
+        Get revision history for a work item with pagination.
+        
+        Args:
+            work_item_id (int): The ID of the work item
+            project (str, optional): Project name or ID. Uses project_context if not provided
+            top (int, optional): Maximum number of revisions to return
+            skip (int, optional): Number of revisions to skip (for pagination)
+            
+        Returns:
+            dict: Revision history with updates list and pagination info
+        """
+        # Use provided project or fallback to context (not strictly required by SDK but good for consistency)
+        project_name = project or self.project_context
+        
+        # Get updates from API
+        updates = self.work_item_tracking_client.get_updates(
+            id=work_item_id,
+            top=top,
+            skip=skip
+        )
+        
+        # Format response
+        result = {
+            "work_item_id": work_item_id,
+            "total_updates": 0,
+            "updates": []
+        }
+        
+        # Handle multiple failure scenarios - check if updates is iterable
+        if updates is not None and hasattr(updates, '__iter__') and not isinstance(updates, str):
+            try:
+                result["total_updates"] = len(updates)
+                for update in updates:
+                    formatted_update = {
+                        "id": update.id,
+                        "rev": update.rev,
+                        "revised_by": {
+                            "id": update.revised_by.id if update.revised_by else None,
+                            "display_name": update.revised_by.display_name if update.revised_by else None,
+                            "unique_name": update.revised_by.unique_name if update.revised_by else None,
+                            "image_url": update.revised_by.image_url if update.revised_by and hasattr(update.revised_by, 'image_url') else None
+                        } if update.revised_by else None,
+                        "revised_date": update.revised_date.isoformat() if update.revised_date else None,
+                        "fields": update.fields if hasattr(update, 'fields') else {},
+                        "relations": {
+                            "added": [{"rel": r.rel, "url": r.url, "attributes": r.attributes if hasattr(r, 'attributes') else {}} for r in update.relations.added] if hasattr(update, 'relations') and update.relations and hasattr(update.relations, 'added') else [],
+                            "removed": [{"rel": r.rel, "url": r.url, "attributes": r.attributes if hasattr(r, 'attributes') else {}} for r in update.relations.removed] if hasattr(update, 'relations') and update.relations and hasattr(update.relations, 'removed') else [],
+                            "updated": [{"rel": r.rel, "url": r.url, "attributes": r.attributes if hasattr(r, 'attributes') else {}} for r in update.relations.updated] if hasattr(update, 'relations') and update.relations and hasattr(update.relations, 'updated') else []
+                        } if hasattr(update, 'relations') else None,
+                        "url": update.url if hasattr(update, 'url') else None
+                    }
+                    result["updates"].append(formatted_update)
+            except TypeError:
+                # Fallback if iteration still fails
+                pass
         
         return result
 

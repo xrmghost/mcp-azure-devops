@@ -115,7 +115,7 @@ class MCPAzureDevOpsServer:
             ),
             types.Tool(
                 name="get_work_item",
-                description="Gets a work item by its ID with optional field expansion.",
+                description="Gets a work item by its ID with optional field expansion. Use expand='All' to get all fields including revision history.",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -125,7 +125,7 @@ class MCPAzureDevOpsServer:
                         },
                         "expand": {
                             "type": "string", 
-                            "description": "The expand option for the work item. Use 'All' to get all fields."
+                            "description": "The expand option for the work item. Use 'All' to get all fields including revision history."
                         },
                     },
                     "required": ["work_item_id"],
@@ -243,6 +243,56 @@ class MCPAzureDevOpsServer:
                         "order": {
                             "type": "string", 
                             "description": "Order in which comments should be returned (e.g., 'created_date_asc', 'created_date_desc')."
+                        }
+                    },
+                    "required": ["work_item_id"],
+                    "additionalProperties": False
+                }
+            ),
+            types.Tool(
+                name="add_work_item_comment",
+                description="Adds a comment to a work item in Azure DevOps.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "work_item_id": {
+                            "type": "integer",
+                            "description": "The ID of the work item to add a comment to."
+                        },
+                        "comment_text": {
+                            "type": "string",
+                            "description": "The text content of the comment to add."
+                        },
+                        "project": {
+                            "type": "string",
+                            "description": "The name or ID of the project (optional if project context is set)."
+                        }
+                    },
+                    "required": ["work_item_id", "comment_text"],
+                    "additionalProperties": False
+                }
+            ),
+            types.Tool(
+                name="get_work_item_history",
+                description="Retrieves the revision history of a work item with field-level change tracking and pagination support.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "work_item_id": {
+                            "type": "integer",
+                            "description": "The ID of the work item to get history for."
+                        },
+                        "project": {
+                            "type": "string",
+                            "description": "The name or ID of the project (optional if project context is set)."
+                        },
+                        "top": {
+                            "type": "integer",
+                            "description": "Maximum number of revisions to return (for pagination)."
+                        },
+                        "skip": {
+                            "type": "integer",
+                            "description": "Number of revisions to skip (for pagination)."
                         }
                     },
                     "required": ["work_item_id"],
@@ -1008,6 +1058,10 @@ class MCPAzureDevOpsServer:
             return self.client.search_work_items(**arguments)
         elif name == "get_work_item_comments":
             return self.client.get_work_item_comments(**arguments)
+        elif name == "add_work_item_comment":
+            return self.client.add_work_item_comment(**arguments)
+        elif name == "get_work_item_history":
+            return self.client.get_work_item_history(**arguments)
         
         # Work Item Metadata Discovery
         elif name == "get_work_item_types":

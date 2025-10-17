@@ -59,7 +59,7 @@ class MCPAzureDevOpsServer:
         self.tools = [
             types.Tool(
                 name="create_work_item",
-                description="Creates a new work item in Azure DevOps. Supports Epic, User Story, Task, Bug, and work item linking.",
+                description="Creates a new work item in Azure DevOps. Supports Epic, User Story, Task, Bug, and work item linking. Multiline fields like System.Description are automatically formatted as markdown for better LLM readability.",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -100,6 +100,13 @@ class MCPAzureDevOpsServer:
                                 },
                                 "required": ["rel", "url"]
                             }
+                        },
+                        "markdown_fields": {
+                            "type": "array",
+                            "description": "Optional list of additional field reference names to format as markdown (e.g., ['Custom.Notes']). System fields like System.Description, System.History are automatically formatted.",
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     },
                     "required": ["project", "work_item_type", "title", "description"],
@@ -127,7 +134,7 @@ class MCPAzureDevOpsServer:
             ),
             types.Tool(
                 name="update_work_item",
-                description="Updates a work item by its ID with field changes and relation management.",
+                description="Updates a work item by its ID with field changes and relation management. Multiline fields like System.Description are automatically formatted as markdown for better LLM readability.",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -155,6 +162,13 @@ class MCPAzureDevOpsServer:
                                     }
                                 },
                                 "required": ["rel", "url"]
+                            }
+                        },
+                        "markdown_fields": {
+                            "type": "array",
+                            "description": "Optional list of additional field reference names to format as markdown (e.g., ['Custom.Notes']). System fields like System.Description, System.History are automatically formatted.",
+                            "items": {
+                                "type": "string"
                             }
                         }
                     },

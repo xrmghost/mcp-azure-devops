@@ -5,6 +5,15 @@ from azure.devops.v7_1.work_item_tracking.models import JsonPatchOperation, Wiql
 from azure.devops.v7_1.wiki.models import WikiCreateParametersV2, WikiPagesBatchRequest
 from azure.devops.v7_1.graph.graph_client import GraphClient
 
+# Default fields to format as markdown for better LLM readability
+DEFAULT_MARKDOWN_FIELDS = [
+    "System.Description",
+    "System.History",
+    "Microsoft.VSTS.TCM.ReproSteps",
+    "Microsoft.VSTS.TCM.SystemInfo",
+    "Microsoft.VSTS.Common.AcceptanceCriteria"
+]
+
 class AzureDevOpsClient:
     def __init__(self):
         self.org_url = os.getenv("AZURE_DEVOPS_ORG_URL")
@@ -68,30 +77,73 @@ class AzureDevOpsClient:
     def get_projects(self):
         return self.core_client.get_projects()
 
-    def create_work_item(self, project, work_item_type, title, description, custom_fields=None, relations=None):
-        patch_document = [
-            JsonPatchOperation(
-                op="add",
-                path="/fields/System.Title",
-                value=title
-            ),
-            JsonPatchOperation(
-                op="add",
-                path="/fields/System.Description",
-                value=description
-            )
-        ]
-
-        if custom_fields:
-            for field, value in custom_fields.items():
+    def _add_markdown_format_operations(self, patch_document, fields_dict, markdown_fields=None):
+        """
+        Adds multilineFieldsFormat operations for markdown fields.
+        This enables better LLM readability by storing multiline text as markdown instead of HTML.
+        
+        Args:
+            patch_document: List of JsonPatchOperation to append to
+            fields_dict: Dict of field reference names and their values being set
+            markdown_fields: Optional list of additional field reference names to format as markdown
+        """
+        # Combine default markdown fields with any additional fields specified
+        all_markdown_fields = set(DEFAULT_MARKDOWN_FIELDS)
+        if markdown_fields:
+            all_markdown_fields.update(markdown_fields)
+        
+        # Add format operation for each field that should be markdown
+        for field_name in fields_dict.keys():
+            if field_name in all_markdown_fields:
                 patch_document.append(
                     JsonPatchOperation(
                         op="add",
-                        path=f"/fields/{field}",
-                        value=value
+                        path=f"/multilineFieldsFormat/{field_name}",
+                        value="markdown"
                     )
                 )
 
+    def create_work_item(self, project, work_item_type, title, description, custom_fields=None, relations=None, markdown_fields=None):
+        """
+        Creates a new work item in Azure DevOps.
+        
+        Args:
+            project: Project name or ID
+            work_item_type: Type of work item (e.g., 'Bug', 'User Story', 'Task')
+            title: Work item title
+            description: Work item description
+            custom_fields: Optional dict of additional field names and values
+            relations: Optional list of relations to other work items
+            markdown_fields: Optional list of additional field reference names to format as markdown.
+                           System fields like System.Description are automatically formatted as markdown.
+                           Use this to include custom multiline fields (e.g., ["Custom.Notes"]).
+        
+        Returns:
+            Created work item object
+        """
+        # Build all fields that will be set
+        all_fields = {
+            "System.Title": title,
+            "System.Description": description
+        }
+        if custom_fields:
+            all_fields.update(custom_fields)
+        
+        # Create patch operations for all fields
+        patch_document = []
+        for field, value in all_fields.items():
+            patch_document.append(
+                JsonPatchOperation(
+                    op="add",
+                    path=f"/fields/{field}",
+                    value=value
+                )
+            )
+        
+        # Add markdown format operations for multiline fields
+        self._add_markdown_format_operations(patch_document, all_fields, markdown_fields)
+
+        # Add relations if provided
         if relations:
             for relation in relations:
                 patch_document.append(
@@ -128,15 +180,36 @@ class AzureDevOpsClient:
             ]
         return result
 
-    def update_work_item(self, work_item_id, updates, relations=None):
-        patch_document = [
-            JsonPatchOperation(
-                op="add",
-                path=f"/fields/{field}",
-                value=value
-            ) for field, value in updates.items()
-        ]
+    def update_work_item(self, work_item_id, updates, relations=None, markdown_fields=None):
+        """
+        Updates an existing work item in Azure DevOps.
+        
+        Args:
+            work_item_id: ID of the work item to update
+            updates: Dict of field names and values to update
+            relations: Optional list of relations to add
+            markdown_fields: Optional list of additional field reference names to format as markdown.
+                           System fields like System.Description are automatically formatted as markdown.
+                           Use this to include custom multiline fields (e.g., ["Custom.Notes"]).
+        
+        Returns:
+            Updated work item object
+        """
+        # Create patch operations for all field updates
+        patch_document = []
+        for field, value in updates.items():
+            patch_document.append(
+                JsonPatchOperation(
+                    op="add",
+                    path=f"/fields/{field}",
+                    value=value
+                )
+            )
+        
+        # Add markdown format operations for multiline fields
+        self._add_markdown_format_operations(patch_document, updates, markdown_fields)
 
+        # Add relations if provided
         if relations:
             for relation in relations:
                 patch_document.append(
